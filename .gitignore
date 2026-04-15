@@ -8,3 +8,7 @@ coverage
 .DS_Store
 apps/mobile/.ionic
 *.log
+
+# Obsidian local workspace state
+.obsidian/
+BulkiBull/.obsidian/
