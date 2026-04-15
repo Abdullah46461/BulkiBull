@@ -1,0 +1,24 @@
+{
+  "name": "@bulki-bull/api",
+  "version": "0.1.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsx watch src/main.ts",
+    "start": "node dist/main.js",
+    "lint": "eslint . --max-warnings=0",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prisma:generate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma generate",
+    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma validate"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.19",
+    "@nestjs/core": "^11.1.19",
+    "@nestjs/platform-express": "^11.1.19",
+    "@prisma/client": "^6.19.3",
+    "dotenv": "^17.4.2",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2"
+  }
+}
