@@ -5,20 +5,24 @@
   "type": "commonjs",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "dev": "tsx watch src/main.ts",
+    "dev": "cd ../.. && npm run build -w packages/shared && cd apps/api && tsx watch src/main.ts",
     "start": "node dist/main.js",
     "lint": "eslint . --max-warnings=0",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prisma:generate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma generate",
-    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma validate"
+    "prisma:validate": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma validate",
+    "prisma:migrate:dev": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" prisma migrate dev",
+    "prisma:seed": "DATABASE_URL=\"${DATABASE_URL:-postgresql://bulki:bulki@localhost:5432/bulki_bull?schema=public}\" tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@bulki-bull/shared": "file:../../packages/shared",
     "@nestjs/common": "^11.1.19",
     "@nestjs/core": "^11.1.19",
     "@nestjs/platform-express": "^11.1.19",
     "@prisma/client": "^6.19.3",
     "dotenv": "^17.4.2",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.2"
+    "rxjs": "^7.8.2",
+    "zod": "^4.3.6"
   }
 }

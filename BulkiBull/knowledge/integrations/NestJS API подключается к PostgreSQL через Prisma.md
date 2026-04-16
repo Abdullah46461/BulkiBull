@@ -27,9 +27,11 @@ async onModuleInit(): Promise<void> {
 - `apps/api/src/prisma/prisma.module.ts`
 - `apps/api/src/prisma/prisma.service.ts`
 - `apps/api/prisma/schema.prisma`
+- `apps/api/src/bulls/bulls.service.ts`
+- `apps/api/src/bulls/bulls.controller.ts`
 
 ## Связанные заметки
 
 - [[локальная инфраструктура PostgreSQL через Docker Compose]]
 - [[health endpoint проверяет подключение Prisma к PostgreSQL]]
-- [[stage 1 оставляет бизнес-модели Prisma на следующий этап]]
+- [[текущий вес вычисляется из последней записи взвешивания]]

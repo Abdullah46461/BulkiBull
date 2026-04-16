@@ -1,9 +1,13 @@
 node_modules
 dist
 .turbo
+.playwright-cli
 coverage
 package-lock.json
 apps/mobile/.ionic
+packages/shared/src/*.d.ts
+packages/shared/src/*.js
+packages/shared/src/*.js.map
 
 .obsidian
 BulkiBull/.obsidian

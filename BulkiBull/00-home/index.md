@@ -29,17 +29,25 @@ project: Bulki Bull
 
 Если задача про текущие технические решения и паттерны:
 
-- [[stage 1 оставляет бизнес-модели Prisma на следующий этап]]
+- [[текущий вес вычисляется из последней записи взвешивания]]
+- [[фото в MVP хранится как photoUrl]]
+- [[mobile сжимает фото из галереи перед сохранением в photoUrl]]
 - [[Codex использует AGENTS.md вместо CLAUDE.md для подключения vault]]
 - [[npm workspaces и turbo управляют монорепозиторием]]
 - [[shared пакет хранит общие типы и константы]]
 - [[health endpoint проверяет подключение Prisma к PostgreSQL]]
 - [[NestJS API подключается к PostgreSQL через Prisma]]
 - [[проверка health endpoint быстро ловит проблемы PostgreSQL]]
+- [[localhost 5173 открывается только при запущенном mobile dev server]]
+- [[Fandom photoUrl может не открываться в iOS симуляторе без format=original]]
 
 ## Текущий статус проекта
 
-Stage 1 готов: монорепозиторий, NestJS API, Ionic Vue mobile, shared package, Prisma, PostgreSQL через Docker Compose, базовые quality checks. Бизнес-модели и пользовательские сценарии еще не реализованы.
+Этапы 1-5 завершены: собран рабочий MVP-скелет с NestJS API, Prisma/PostgreSQL, Ionic Vue mobile app, shared DTO/types/Zod-схемами, CRUD-сценариями для бычков, историей взвешиваний и фото через `photoUrl`.
+
+Поверх этого MVP mobile уже умеет выбирать фото из галереи и временно сохранять сжатое изображение в `photoUrl`, пока нет отдельного backend upload.
+
+Следующая итерация должна начинаться не с нового foundation, а с осознанного расширения MVP: тесты, настоящая загрузка фото, улучшение UX ошибок, pagination/lazy loading и production/deploy notes.
 
 ## Workflow
 

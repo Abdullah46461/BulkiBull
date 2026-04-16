@@ -8,6 +8,7 @@
     "emitDecoratorMetadata": true,
     "isolatedModules": false,
     "strictPropertyInitialization": false,
+    "paths": {},
     "types": ["node"]
   },
   "include": ["src/**/*.ts"],

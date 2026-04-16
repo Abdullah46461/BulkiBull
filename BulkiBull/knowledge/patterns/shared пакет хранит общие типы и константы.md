@@ -8,15 +8,20 @@ project: Bulki Bull
 
 # Shared пакет хранит общие типы и константы
 
-`packages/shared` публикуется как `@bulki-bull/shared` и уже используется mobile-приложением для `APP_NAME`.
+`packages/shared` публикуется как `@bulki-bull/shared` и используется backend и mobile как единый источник контрактов.
 
 Сейчас в `packages/shared/src/index.ts` есть:
 
-- `APP_NAME = 'Bulki Bull'`
-- `ApiHealth`
+- response-типы API;
+- Zod-схемы для создания и редактирования бычка;
+- Zod-схема для добавления веса;
+- enum-like values для пола бычка;
+- утилиты расчета и форматирования возраста.
 
 ## Правило развития
 
-Когда появятся `Bull`, `WeightRecord` и API responses, общие DTO/типы лучше добавлять сюда. Это поможет держать API и mobile в одном контракте.
+Новые DTO и response-типы сначала добавлять в shared, затем подключать в `apps/api` и `apps/mobile`. Это помогает держать API и mobile в одном контракте.
 
-См. [[npm workspaces и turbo управляют монорепозиторием]].
+Если контракт содержит runtime validation, использовать Zod-схему из shared, а не дублировать проверку вручную.
+
+См. [[npm workspaces и turbo управляют монорепозиторием]] и [[текущий вес вычисляется из последней записи взвешивания]].

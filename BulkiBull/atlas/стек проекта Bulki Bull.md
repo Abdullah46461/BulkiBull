@@ -33,12 +33,13 @@ project: Bulki Bull
 
 ## Shared
 
-- `@bulki-bull/shared` хранит `APP_NAME` и тип `ApiHealth`.
-- В следующих этапах сюда стоит добавлять DTO, enum-значения и общие schema-контракты.
+- `@bulki-bull/shared` хранит Zod-схемы, DTO-типы, response-типы и утилиты расчета возраста.
+- Backend использует shared-схемы для validation pipe.
+- Mobile использует shared-типы и схемы для API-контрактов.
 
 ## Локальная инфраструктура
 
 - PostgreSQL запускается через Docker Compose.
 - Проверка доступности базы идет через [[health endpoint проверяет подключение Prisma к PostgreSQL]].
 
-См. также [[локальная инфраструктура PostgreSQL через Docker Compose]].
+См. также [[локальная инфраструктура PostgreSQL через Docker Compose]] и [[shared пакет хранит общие типы и константы]].

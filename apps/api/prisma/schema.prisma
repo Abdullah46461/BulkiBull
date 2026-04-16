@@ -7,5 +7,39 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Stage 1 keeps Prisma connected without business models.
-// Bull and WeightRecord will be added in Stage 2.
+enum BullSex {
+  MALE
+  FEMALE
+  UNKNOWN
+}
+
+model Bull {
+  id            String         @id @default(cuid())
+  tagNumber     String         @unique
+  name          String?
+  birthDate     DateTime
+  breed         String?
+  sex           BullSex
+  arrivalDate   DateTime
+  initialWeight Decimal        @db.Decimal(8, 2)
+  photoUrl      String?
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  weightRecords WeightRecord[]
+
+  @@index([tagNumber])
+  @@index([createdAt])
+}
+
+model WeightRecord {
+  id        String   @id @default(cuid())
+  bullId    String
+  date      DateTime
+  weight    Decimal  @db.Decimal(8, 2)
+  comment   String?
+  createdAt DateTime @default(now())
+  bull      Bull     @relation(fields: [bullId], references: [id], onDelete: Cascade)
+
+  @@index([bullId, date])
+}
