@@ -11,6 +11,8 @@ export default [
       '**/coverage/**',
       'apps/mobile/.ionic/**',
       'apps/mobile/ios/App/App/public/**',
+      'apps/mobile/ios/build/**',
+      'apps/mobile/ios/DerivedData/**',
     ],
   },
   js.configs.recommended,

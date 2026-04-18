@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Inject, Param, Patch, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   AddWeightInputSchema,
   CreateBullInputSchema,
@@ -45,6 +57,12 @@ export class BullsController {
     @Body(new ZodValidationPipe(UpdateBullInputSchema)) body: UpdateBullInput,
   ): Promise<BullDetailResponse> {
     return this.bullsService.update(id, body);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(@Param('id') id: string): Promise<void> {
+    await this.bullsService.remove(id);
   }
 
   @Get(':id/weights')

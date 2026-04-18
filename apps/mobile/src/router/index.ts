@@ -4,6 +4,7 @@ import AddWeightView from '../views/AddWeightView.vue';
 import BullDetailView from '../views/BullDetailView.vue';
 import BullFormView from '../views/BullFormView.vue';
 import BullListView from '../views/BullListView.vue';
+import FeedsView from '../views/FeedsView.vue';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -45,6 +46,11 @@ const router = createRouter({
       name: 'weight-create',
       component: AddWeightView,
       props: true,
+    },
+    {
+      path: '/feeds',
+      name: 'feeds',
+      component: FeedsView,
     },
   ],
 });

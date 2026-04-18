@@ -1,4 +1,6 @@
+import { Capacitor } from '@capacitor/core';
 import { IonicVue } from '@ionic/vue';
+import { defineCustomElements } from '@ionic/pwa-elements/loader';
 import { createApp } from 'vue';
 
 import App from './App.vue';
@@ -15,6 +17,10 @@ import '@ionic/vue/css/padding.css';
 import '@ionic/vue/css/text-alignment.css';
 import '@ionic/vue/css/text-transformation.css';
 import './theme/variables.css';
+
+if (Capacitor.getPlatform() === 'web') {
+  void defineCustomElements(window);
+}
 
 const app = createApp(App).use(IonicVue).use(router);
 

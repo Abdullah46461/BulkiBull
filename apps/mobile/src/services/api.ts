@@ -3,13 +3,18 @@ import {
   BullDetailResponseSchema,
   BullResponseSchema,
   CreateBullInputSchema,
+  FeedResponseSchema,
   UpdateBullInputSchema,
+  UpdateFeedInputSchema,
   WeightRecordResponseSchema,
   type AddWeightInput,
   type BullDetailResponse,
   type BullResponse,
   type CreateBullInput,
+  type FeedResponse,
   type UpdateBullInput,
+  type UpdateFeedInput,
+  type FeedType,
   type WeightRecordResponse,
 } from '@bulki-bull/shared';
 import { z } from 'zod';
@@ -108,6 +113,12 @@ export const api = {
     });
   },
 
+  async deleteBull(id: string): Promise<void> {
+    await request(`/bulls/${id}`, z.null(), {
+      method: 'DELETE',
+    });
+  },
+
   listWeights(id: string): Promise<WeightRecordResponse[]> {
     return request(`/bulls/${id}/weights`, z.array(WeightRecordResponseSchema));
   },
@@ -116,6 +127,17 @@ export const api = {
     return request(`/bulls/${id}/weights`, WeightRecordResponseSchema, {
       method: 'POST',
       body: JSON.stringify(parseSchema(AddWeightInputSchema, input, 'Проверьте данные формы')),
+    });
+  },
+
+  listFeeds(): Promise<FeedResponse[]> {
+    return request('/feeds', z.array(FeedResponseSchema));
+  },
+
+  updateFeed(type: FeedType, input: UpdateFeedInput): Promise<FeedResponse> {
+    return request(`/feeds/${type}`, FeedResponseSchema, {
+      method: 'PUT',
+      body: JSON.stringify(parseSchema(UpdateFeedInputSchema, input, 'Проверьте данные формы')),
     });
   },
 };

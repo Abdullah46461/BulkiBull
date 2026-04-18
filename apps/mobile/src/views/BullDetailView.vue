@@ -27,14 +27,25 @@
         </section>
 
         <template v-else-if="bull">
+          <section v-if="actionError" class="error-block">
+            <p>{{ actionError }}</p>
+          </section>
+
           <section class="hero">
-            <img
+            <button
               v-if="shouldShowPhoto"
-              class="hero-photo"
-              :src="photoSrc"
-              :alt="`Фото ${bull.tagNumber}`"
-              @error="photoBroken = true"
-            />
+              type="button"
+              class="hero-photo-button"
+              :aria-label="`Открыть фото ${bull.tagNumber}`"
+              @click="openPhotoViewer"
+            >
+              <img
+                class="hero-photo"
+                :src="photoSrc"
+                :alt="`Фото ${bull.tagNumber}`"
+                @error="photoBroken = true"
+              />
+            </button>
             <div v-else class="avatar">{{ bull.tagNumber }}</div>
             <div>
               <p class="eyebrow">{{ sexLabels[bull.sex] }}</p>
@@ -104,9 +115,50 @@
               </div>
             </ion-item>
           </ion-list>
+
+          <div class="danger-zone__actions">
+            <ion-button
+              class="danger-zone__button"
+              fill="solid"
+              shape="round"
+              :disabled="deleting"
+              @click="confirmDelete"
+            >
+              <ion-spinner v-if="deleting" slot="start" name="crescent" />
+              <ion-icon v-else slot="start" :icon="trashOutline" />
+              {{ deleting ? 'Удаляем' : 'Удалить карточку' }}
+            </ion-button>
+          </div>
         </template>
       </main>
     </ion-content>
+
+    <div
+      v-if="isPhotoViewerOpen && shouldShowPhoto"
+      class="photo-viewer"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="`Увеличенное фото ${bull?.tagNumber ?? ''}`"
+      @click="closePhotoViewer"
+    >
+      <button
+        type="button"
+        class="photo-viewer__close"
+        aria-label="Закрыть фото"
+        @click.stop="closePhotoViewer"
+      >
+        <ion-icon :icon="closeOutline" />
+      </button>
+
+      <div class="photo-viewer__body">
+        <img
+          class="photo-viewer__image"
+          :src="photoSrc"
+          :alt="`Фото ${bull?.tagNumber ?? ''}`"
+          @click.stop
+        />
+      </div>
+    </div>
   </ion-page>
 </template>
 
@@ -125,10 +177,12 @@ import {
   IonSpinner,
   IonTitle,
   IonToolbar,
+  alertController,
   onIonViewWillEnter,
 } from '@ionic/vue';
-import { createOutline, scaleOutline } from 'ionicons/icons';
+import { closeOutline, createOutline, scaleOutline, trashOutline } from 'ionicons/icons';
 import { computed, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import type { BullDetailResponse } from '@bulki-bull/shared';
 
 import { api } from '../services/api';
@@ -139,17 +193,35 @@ const props = defineProps<{
   id: string;
 }>();
 
+const router = useRouter();
 const bull = ref<BullDetailResponse | null>(null);
 const loading = ref(true);
 const error = ref('');
+const actionError = ref('');
+const deleting = ref(false);
 const photoBroken = ref(false);
+const isPhotoViewerOpen = ref(false);
 
 const shouldShowPhoto = computed(() => Boolean(bull.value?.photoUrl) && !photoBroken.value);
 const photoSrc = computed(() => normalizePhotoUrl(bull.value?.photoUrl) ?? '');
 
+const openPhotoViewer = (): void => {
+  if (!shouldShowPhoto.value) {
+    return;
+  }
+
+  isPhotoViewerOpen.value = true;
+};
+
+const closePhotoViewer = (): void => {
+  isPhotoViewerOpen.value = false;
+};
+
 const loadBull = async (): Promise<void> => {
   loading.value = true;
   error.value = '';
+  actionError.value = '';
+  closePhotoViewer();
 
   try {
     photoBroken.value = false;
@@ -160,6 +232,51 @@ const loadBull = async (): Promise<void> => {
   } finally {
     loading.value = false;
   }
+};
+
+const deleteBull = async (): Promise<void> => {
+  if (!bull.value || deleting.value) {
+    return;
+  }
+
+  deleting.value = true;
+  actionError.value = '';
+
+  try {
+    await api.deleteBull(bull.value.id);
+    await router.replace('/bulls');
+  } catch (requestError) {
+    actionError.value =
+      requestError instanceof Error ? requestError.message : 'Не удалось удалить бычка';
+  } finally {
+    deleting.value = false;
+  }
+};
+
+const confirmDelete = async (): Promise<void> => {
+  if (!bull.value || deleting.value) {
+    return;
+  }
+
+  const alert = await alertController.create({
+    header: 'Удалить бычка?',
+    message: `Карточка ${bull.value.name || `с биркой ${bull.value.tagNumber}`} и вся история веса будут удалены без возможности восстановления.`,
+    buttons: [
+      {
+        text: 'Отмена',
+        role: 'cancel',
+      },
+      {
+        text: 'Удалить',
+        role: 'destructive',
+        handler: () => {
+          void deleteBull();
+        },
+      },
+    ],
+  });
+
+  await alert.present();
 };
 
 onIonViewWillEnter(() => {
@@ -201,6 +318,18 @@ onIonViewWillEnter(() => {
   border: 1px solid #cfe0d2;
   border-radius: 8px;
   object-fit: cover;
+}
+
+.hero-photo-button {
+  display: block;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+}
+
+.hero-photo-button:active {
+  transform: scale(0.98);
 }
 
 .eyebrow,
@@ -266,6 +395,64 @@ dt {
 .info-block {
   padding: 14px;
   margin-bottom: 18px;
+}
+
+.danger-zone__actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+
+.danger-zone__button {
+  --background: #8f3d29;
+  --background-hover: #823421;
+  --background-activated: #732d1c;
+  --background-focused: #823421;
+  --border-radius: 999px;
+  --box-shadow: none;
+  --padding-start: 18px;
+  --padding-end: 18px;
+  min-height: 46px;
+  font-weight: 700;
+}
+
+.photo-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 20px);
+  background: rgba(14, 23, 19, 0.92);
+  backdrop-filter: blur(6px);
+}
+
+.photo-viewer__close {
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.photo-viewer__body {
+  display: grid;
+  place-items: center;
+  min-height: 0;
+}
+
+.photo-viewer__image {
+  width: 100%;
+  max-width: 960px;
+  max-height: min(78vh, 960px);
+  border-radius: 18px;
+  object-fit: contain;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
 }
 
 dl {
@@ -342,5 +529,19 @@ dd {
   gap: 14px;
   color: #607067;
   text-align: center;
+}
+
+.error-block {
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid #e7b3a9;
+  border-radius: 8px;
+  background: #fff2ee;
+  color: #8a321f;
+  white-space: pre-line;
+}
+
+.error-block p {
+  margin: 0;
 }
 </style>

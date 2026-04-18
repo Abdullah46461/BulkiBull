@@ -14,6 +14,12 @@ export const BullSexSchema = z.enum(bullSexValues);
 
 export type BullSex = z.infer<typeof BullSexSchema>;
 
+export const feedTypeValues = ['hay', 'compound_feed'] as const;
+
+export const FeedTypeSchema = z.enum(feedTypeValues);
+
+export type FeedType = z.infer<typeof FeedTypeSchema>;
+
 const emptyStringToUndefined = (value: unknown): unknown => {
   if (typeof value !== 'string') {
     return value;
@@ -112,6 +118,24 @@ const weightKgSchema = z.coerce
     message: 'Вес выглядит слишком большим для бычка.',
   });
 
+const stockKgSchema = z.coerce
+  .number()
+  .nonnegative({
+    message: 'Остаток должен быть 0 или больше.',
+  })
+  .max(1_000_000, {
+    message: 'Остаток выглядит слишком большим.',
+  });
+
+const feedConsumptionKgSchema = z.coerce
+  .number()
+  .nonnegative({
+    message: 'Расход на голову должен быть 0 или больше.',
+  })
+  .max(100, {
+    message: 'Расход на голову выглядит слишком большим.',
+  });
+
 export const CreateBullInputSchema = z
   .object({
     tagNumber: z.string().trim().min(1, 'Укажите бирку.').max(50),
@@ -147,6 +171,13 @@ export const ListBullsQuerySchema = z
   })
   .strict();
 
+export const UpdateFeedInputSchema = z
+  .object({
+    currentStockKg: stockKgSchema,
+    consumptionPerBullPerDayKg: feedConsumptionKgSchema,
+  })
+  .strict();
+
 export const WeightRecordResponseSchema = z.object({
   id: z.string(),
   bullId: z.string(),
@@ -178,13 +209,30 @@ export const BullDetailResponseSchema = BullResponseSchema.extend({
   weightRecords: z.array(WeightRecordResponseSchema),
 });
 
+const nullableNumberSchema = z.number().nullable();
+const nullableStringSchema = z.string().nullable();
+
+export const FeedResponseSchema = z.object({
+  id: nullableStringSchema,
+  type: FeedTypeSchema,
+  currentStockKg: nullableNumberSchema,
+  consumptionPerBullPerDayKg: nullableNumberSchema,
+  bullsCount: z.number().int().nonnegative(),
+  dailyConsumptionKg: nullableNumberSchema,
+  daysLeft: nullableNumberSchema,
+  createdAt: nullableStringSchema,
+  updatedAt: nullableStringSchema,
+});
+
 export type CreateBullInput = z.infer<typeof CreateBullInputSchema>;
 export type UpdateBullInput = z.infer<typeof UpdateBullInputSchema>;
 export type AddWeightInput = z.infer<typeof AddWeightInputSchema>;
 export type ListBullsQuery = z.infer<typeof ListBullsQuerySchema>;
+export type UpdateFeedInput = z.infer<typeof UpdateFeedInputSchema>;
 export type WeightRecordResponse = z.infer<typeof WeightRecordResponseSchema>;
 export type BullResponse = z.infer<typeof BullResponseSchema>;
 export type BullDetailResponse = z.infer<typeof BullDetailResponseSchema>;
+export type FeedResponse = z.infer<typeof FeedResponseSchema>;
 
 export const calculateAgeInMonths = (birthDate: Date, now = new Date()): number => {
   let months = (now.getFullYear() - birthDate.getFullYear()) * 12;

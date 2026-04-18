@@ -68,6 +68,19 @@ const seedBulls = [
   },
 ];
 
+const seedFeedStocks = [
+  {
+    type: 'hay' as const,
+    currentStockKg: 1200,
+    consumptionPerBullPerDayKg: 6.5,
+  },
+  {
+    type: 'compound_feed' as const,
+    currentStockKg: 280,
+    consumptionPerBullPerDayKg: 2.2,
+  },
+];
+
 async function main(): Promise<void> {
   for (const seedBull of seedBulls) {
     const bull = await prisma.bull.upsert({
@@ -110,6 +123,23 @@ async function main(): Promise<void> {
         weight: weightRecord.weight,
         comment: weightRecord.comment,
       })),
+    });
+  }
+
+  for (const feedStock of seedFeedStocks) {
+    await prisma.feedStock.upsert({
+      where: {
+        type: feedStock.type,
+      },
+      update: {
+        currentStockKg: feedStock.currentStockKg,
+        consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,
+      },
+      create: {
+        type: feedStock.type,
+        currentStockKg: feedStock.currentStockKg,
+        consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,
+      },
     });
   }
 }

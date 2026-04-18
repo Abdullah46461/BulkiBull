@@ -8,6 +8,8 @@ coverage
 !.env.example
 .DS_Store
 apps/mobile/.ionic
+apps/mobile/ios/build
+apps/mobile/ios/DerivedData
 *.log
 packages/shared/src/*.d.ts
 packages/shared/src/*.js

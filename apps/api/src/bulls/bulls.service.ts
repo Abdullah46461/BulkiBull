@@ -92,6 +92,22 @@ export class BullsService {
     }
   }
 
+  async remove(id: string): Promise<void> {
+    try {
+      await this.prisma.bull.delete({
+        where: {
+          id,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2025') {
+        throw new NotFoundException('Bull not found.');
+      }
+
+      throw error;
+    }
+  }
+
   async findWeights(id: string): Promise<WeightRecordResponse[]> {
     await this.ensureBullExists(id);
 

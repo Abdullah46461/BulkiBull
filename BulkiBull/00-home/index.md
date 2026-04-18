@@ -30,22 +30,29 @@ project: Bulki Bull
 Если задача про текущие технические решения и паттерны:
 
 - [[текущий вес вычисляется из последней записи взвешивания]]
+- [[удаление бычка в MVP требует подтверждения и удаляет историю веса]]
 - [[фото в MVP хранится как photoUrl]]
 - [[mobile сжимает фото из галереи перед сохранением в photoUrl]]
+- [[desktop web использует PWA Elements для Camera.takePhoto]]
 - [[Codex использует AGENTS.md вместо CLAUDE.md для подключения vault]]
 - [[npm workspaces и turbo управляют монорепозиторием]]
 - [[shared пакет хранит общие типы и константы]]
 - [[health endpoint проверяет подключение Prisma к PostgreSQL]]
 - [[NestJS API подключается к PostgreSQL через Prisma]]
 - [[проверка health endpoint быстро ловит проблемы PostgreSQL]]
+- [[Nest API отвечает request entity too large без увеличенного body limit для photoUrl]]
 - [[localhost 5173 открывается только при запущенном mobile dev server]]
+- [[Capacitor copy и sync не обновляют уже установленный iOS build в симуляторе]]
 - [[Fandom photoUrl может не открываться в iOS симуляторе без format=original]]
+- [[iOS Simulator открывает Camera UI без живого превью для Capacitor Camera]]
 
 ## Текущий статус проекта
 
 Этапы 1-5 завершены: собран рабочий MVP-скелет с NestJS API, Prisma/PostgreSQL, Ionic Vue mobile app, shared DTO/types/Zod-схемами, CRUD-сценариями для бычков, историей взвешиваний и фото через `photoUrl`.
 
-Поверх этого MVP mobile уже умеет выбирать фото из галереи и временно сохранять сжатое изображение в `photoUrl`, пока нет отдельного backend upload.
+Поверх этого MVP удаление бычка уже доступно из карточки животного с подтверждением destructive-действия. Отдельное удаление записи веса пока остается отдельным продуктовым вопросом.
+
+Поверх этого MVP mobile уже умеет выбирать фото из галереи, снимать его камерой и временно сохранять сжатое изображение в `photoUrl`, пока нет отдельного backend upload. В desktop web для camera flow используется `@ionic/pwa-elements`, а в нативном iOS camera preview нужно проверять на реальном устройстве, а не только в симуляторе.
 
 Следующая итерация должна начинаться не с нового foundation, а с осознанного расширения MVP: тесты, настоящая загрузка фото, улучшение UX ошибок, pagination/lazy loading и production/deploy notes.
 

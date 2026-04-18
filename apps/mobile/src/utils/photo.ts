@@ -49,7 +49,11 @@ const renderAsJpegDataUrl = (
   maxDimension: number,
   quality: number,
 ): string => {
-  const { width, height } = getScaledDimensions(image.naturalWidth, image.naturalHeight, maxDimension);
+  const { width, height } = getScaledDimensions(
+    image.naturalWidth,
+    image.naturalHeight,
+    maxDimension,
+  );
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

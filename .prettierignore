@@ -5,6 +5,11 @@ dist
 coverage
 package-lock.json
 apps/mobile/.ionic
+apps/mobile/ios/DerivedData
+apps/mobile/ios/build
+apps/mobile/ios/App/App/public
+apps/mobile/ios/App/App/capacitor.config.json
+apps/mobile/ios/App/App/Assets.xcassets
 packages/shared/src/*.d.ts
 packages/shared/src/*.js
 packages/shared/src/*.js.map

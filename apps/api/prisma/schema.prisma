@@ -13,6 +13,11 @@ enum BullSex {
   UNKNOWN
 }
 
+enum FeedType {
+  hay
+  compound_feed
+}
+
 model Bull {
   id            String         @id @default(cuid())
   tagNumber     String         @unique
@@ -42,4 +47,13 @@ model WeightRecord {
   bull      Bull     @relation(fields: [bullId], references: [id], onDelete: Cascade)
 
   @@index([bullId, date])
+}
+
+model FeedStock {
+  id                         String   @id @default(cuid())
+  type                       FeedType @unique
+  currentStockKg             Decimal  @db.Decimal(10, 2)
+  consumptionPerBullPerDayKg Decimal  @db.Decimal(8, 3)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
 }

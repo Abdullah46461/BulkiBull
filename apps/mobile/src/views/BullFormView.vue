@@ -88,11 +88,21 @@
                   type="button"
                   fill="outline"
                   :disabled="saving || photoProcessing"
+                  @click="capturePhoto"
+                >
+                  <ion-spinner v-if="photoAction === 'camera'" slot="start" name="crescent" />
+                  <ion-icon v-else slot="start" :icon="cameraOutline" />
+                  {{ photoPreviewUrl ? 'Снять заново' : 'Сделать фото' }}
+                </ion-button>
+                <ion-button
+                  type="button"
+                  fill="outline"
+                  :disabled="saving || photoProcessing"
                   @click="selectPhotoFromGallery"
                 >
-                  <ion-spinner v-if="photoProcessing" slot="start" name="crescent" />
+                  <ion-spinner v-if="photoAction === 'gallery'" slot="start" name="crescent" />
                   <ion-icon v-else slot="start" :icon="imagesOutline" />
-                  {{ photoPreviewUrl ? 'Заменить фото' : 'Выбрать из галереи' }}
+                  {{ photoPreviewUrl ? 'Выбрать из галереи' : 'Из галереи' }}
                 </ion-button>
                 <ion-button
                   v-if="photoPreviewUrl"
@@ -106,7 +116,9 @@
                   Удалить
                 </ion-button>
               </div>
-              <p class="photo-hint">Фото выбирается из галереи телефона. Ссылка вручную не нужна.</p>
+              <p class="photo-hint">
+                Фото можно снять камерой или выбрать из галереи телефона. Ссылка вручную не нужна.
+              </p>
             </section>
             <ion-item>
               <ion-textarea
@@ -149,8 +161,8 @@ import {
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue';
-import { Camera, MediaTypeSelection } from '@capacitor/camera';
-import { imagesOutline, saveOutline, trashOutline } from 'ionicons/icons';
+import { Camera, CameraDirection, MediaTypeSelection, type MediaResult } from '@capacitor/camera';
+import { cameraOutline, imagesOutline, saveOutline, trashOutline } from 'ionicons/icons';
 import { computed, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import type { BullSex, CreateBullInput, UpdateBullInput } from '@bulki-bull/shared';
@@ -175,10 +187,13 @@ type BullForm = {
   notes: string;
 };
 
+type PhotoAction = 'camera' | 'gallery';
+
 const router = useRouter();
 const isEdit = computed(() => props.mode === 'edit');
 const loading = ref(false);
-const photoProcessing = ref(false);
+const photoAction = ref<PhotoAction | null>(null);
+const photoProcessing = computed(() => photoAction.value !== null);
 const saving = ref(false);
 const error = ref('');
 const form = reactive<BullForm>({
@@ -192,6 +207,9 @@ const form = reactive<BullForm>({
   photoUrl: '',
   notes: '',
 });
+
+const PHOTO_MAX_DIMENSION = 1280;
+const PHOTO_QUALITY = 85;
 
 const optionalText = (value: string): string | undefined => {
   const trimmed = value.trim();
@@ -260,35 +278,71 @@ const buildPayload = (): CreateBullInput => ({
 
 const photoPreviewUrl = computed(() => normalizePhotoUrl(optionalText(form.photoUrl)));
 
-const selectPhotoFromGallery = async (): Promise<void> => {
-  photoProcessing.value = true;
+const savePhotoFromResult = async (result?: MediaResult): Promise<void> => {
+  if (!result?.webPath) {
+    throw new Error('Не удалось получить фото. Попробуйте еще раз.');
+  }
+
+  form.photoUrl = await photoSourceToDataUrl(result.webPath);
+};
+
+const runPhotoAction = async (
+  action: PhotoAction,
+  task: () => Promise<void>,
+  fallbackMessage: string,
+): Promise<void> => {
+  photoAction.value = action;
   error.value = '';
 
   try {
-    const { results } = await Camera.chooseFromGallery({
-      quality: 85,
-      limit: 1,
-      mediaType: MediaTypeSelection.Photo,
-      targetWidth: 1280,
-      targetHeight: 1280,
-    });
-    const selectedPhoto = results[0];
-
-    if (!selectedPhoto?.webPath) {
-      return;
-    }
-
-    form.photoUrl = await photoSourceToDataUrl(selectedPhoto.webPath);
+    await task();
   } catch (photoError) {
     if (isPhotoSelectionCancelled(photoError)) {
       return;
     }
 
-    error.value = photoError instanceof Error ? photoError.message : 'Не удалось выбрать фото';
+    error.value = photoError instanceof Error ? photoError.message : fallbackMessage;
   } finally {
-    photoProcessing.value = false;
+    photoAction.value = null;
   }
 };
+
+const capturePhoto = async (): Promise<void> =>
+  runPhotoAction(
+    'camera',
+    async () => {
+      const result = await Camera.takePhoto({
+        cameraDirection: CameraDirection.Rear,
+        correctOrientation: true,
+        quality: PHOTO_QUALITY,
+        saveToGallery: false,
+        targetWidth: PHOTO_MAX_DIMENSION,
+        targetHeight: PHOTO_MAX_DIMENSION,
+        webUseInput: false,
+      });
+
+      await savePhotoFromResult(result);
+    },
+    'Не удалось сделать фото',
+  );
+
+const selectPhotoFromGallery = async (): Promise<void> =>
+  runPhotoAction(
+    'gallery',
+    async () => {
+      const { results } = await Camera.chooseFromGallery({
+        correctOrientation: true,
+        quality: PHOTO_QUALITY,
+        limit: 1,
+        mediaType: MediaTypeSelection.Photo,
+        targetWidth: PHOTO_MAX_DIMENSION,
+        targetHeight: PHOTO_MAX_DIMENSION,
+      });
+
+      await savePhotoFromResult(results[0]);
+    },
+    'Не удалось выбрать фото',
+  );
 
 const removePhoto = (): void => {
   form.photoUrl = '';
