@@ -4,27 +4,25 @@
       <ion-toolbar>
         <ion-title>Бычки</ion-title>
         <ion-buttons slot="end">
-          <ion-button router-link="/feeds" aria-label="Открыть корма">
-            <ion-icon slot="icon-only" :icon="leafOutline" />
-          </ion-button>
+          <theme-toggle-button />
           <ion-button
             :aria-label="isSearchOpen ? 'Закрыть поиск' : 'Открыть поиск'"
             @click="toggleSearch"
           >
             <ion-icon slot="icon-only" :icon="isSearchOpen ? closeOutline : searchOutline" />
           </ion-button>
-          <ion-button router-link="/bulls/new" aria-label="Добавить бычка">
-            <ion-icon slot="icon-only" :icon="addOutline" />
-          </ion-button>
         </ion-buttons>
       </ion-toolbar>
       <ion-toolbar class="summary-toolbar">
-        <div class="feed-summary" aria-label="Остаток кормов по дням">
+        <div class="feed-summary" aria-label="Остаток кормов по датам">
           <div
             v-for="item in feedSummaryItems"
             :key="item.type"
             class="feed-summary__pill"
-            :class="{ 'feed-summary__pill--muted': item.isMuted }"
+            :class="{
+              'feed-summary__pill--muted': item.isMuted,
+              'feed-summary__pill--warning': item.isWarning,
+            }"
           >
             <span>{{ item.label }}</span>
             <strong>{{ item.value }}</strong>
@@ -127,18 +125,15 @@ import {
   IonToolbar,
   onIonViewWillEnter,
 } from '@ionic/vue';
-import {
-  addOutline,
-  closeCircleOutline,
-  closeOutline,
-  leafOutline,
-  searchOutline,
-} from 'ionicons/icons';
+import { addOutline, closeCircleOutline, closeOutline, searchOutline } from 'ionicons/icons';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { BullResponse, FeedResponse, FeedType } from '@bulki-bull/shared';
 
+import ThemeToggleButton from '../components/ThemeToggleButton.vue';
 import { api } from '../services/api';
-import { feedLabels, formatKg, formatNumber, sexLabels } from '../utils/formatters';
+import { syncFeedNotifications } from '../services/feedNotifications';
+import { feedLabels, formatFeedPeriodCompactRu, formatKg, sexLabels } from '../utils/formatters';
+import { getFeedAvailability, hasFeedPeriod, isFeedWarning } from '../utils/feedAvailability';
 import { normalizePhotoUrl } from '../utils/photo';
 
 const FEEDS_UPDATED_EVENT = 'feeds-updated';
@@ -153,28 +148,31 @@ const isSearchOpen = ref(false);
 const searchInput = ref<HTMLInputElement | null>(null);
 let searchDebounceId: number | undefined;
 
-const formatHeaderDaysLeft = (value: number | null): string =>
-  value === null ? '—' : `${formatNumber(value, 1)} дн.`;
-
 const feedSummaryItems = computed<
   Array<{
     type: FeedType;
     label: string;
     value: string;
     isMuted: boolean;
+    isWarning: boolean;
   }>
 >(() => {
   const summaryMap = new Map(feedSummary.value.map((item) => [item.type, item]));
 
   return (['hay', 'compound_feed'] as FeedType[]).map((type) => {
     const item = summaryMap.get(type) ?? null;
-    const value = formatHeaderDaysLeft(item?.daysLeft ?? null);
+    const availability = item ? getFeedAvailability(item) : null;
+    const value =
+      availability && hasFeedPeriod(availability)
+        ? formatFeedPeriodCompactRu(availability.periodStartDate, availability.depletionDate)
+        : '—';
 
     return {
       type,
       label: feedLabels[type],
       value,
-      isMuted: item?.daysLeft === null,
+      isMuted: !availability || !hasFeedPeriod(availability),
+      isWarning: availability ? isFeedWarning(availability.daysLeft) : false,
     };
   });
 });
@@ -195,7 +193,9 @@ const loadBulls = async (): Promise<void> => {
 
 const loadFeedSummary = async (): Promise<void> => {
   try {
-    feedSummary.value = await api.listFeeds();
+    const response = await api.listFeeds();
+    feedSummary.value = response;
+    void syncFeedNotifications(response);
   } catch {
     feedSummary.value = [];
   }
@@ -289,8 +289,8 @@ onBeforeUnmount(() => {
 <style scoped>
 .screen {
   min-height: 100%;
-  padding: 16px;
-  background: #f4f6f2;
+  padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
+  background: var(--app-screen-background);
 }
 
 .bull-list {
@@ -300,11 +300,11 @@ onBeforeUnmount(() => {
 }
 
 .bull-item {
-  --background: #ffffff;
+  --background: var(--app-surface);
   --border-radius: 8px;
   --inner-padding-end: 12px;
   --padding-start: 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
 }
 
@@ -327,14 +327,14 @@ onBeforeUnmount(() => {
   min-width: 120px;
   gap: 2px;
   padding: 10px 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: 0 8px 18px rgba(40, 69, 52, 0.05);
+  background: var(--app-surface-raised);
+  box-shadow: var(--app-shadow-soft);
 }
 
 .feed-summary__pill span {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
@@ -342,13 +342,23 @@ onBeforeUnmount(() => {
 }
 
 .feed-summary__pill strong {
-  color: #1f2d24;
-  font-size: 15px;
-  line-height: 1.2;
+  color: var(--app-text-strong);
+  font-size: 14px;
+  line-height: 1.3;
+  white-space: normal;
 }
 
 .feed-summary__pill--muted strong {
-  color: #708076;
+  color: var(--app-text-soft);
+}
+
+.feed-summary__pill--warning {
+  border-color: var(--app-danger-soft-border);
+  background: var(--app-danger-soft-background);
+}
+
+.feed-summary__pill--warning strong {
+  color: var(--app-danger-soft-text);
 }
 
 .search-toolbar {
@@ -362,14 +372,14 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 8px;
   padding: 0 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 14px;
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 .search-panel__icon,
 .search-panel__clear {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 20px;
 }
 
@@ -380,12 +390,12 @@ onBeforeUnmount(() => {
   border: 0;
   outline: none;
   background: transparent;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font: inherit;
 }
 
 .search-panel__input::placeholder {
-  color: #8c9a92;
+  color: var(--app-text-placeholder);
 }
 
 .search-panel__clear {
@@ -405,8 +415,8 @@ onBeforeUnmount(() => {
   place-items: center;
   padding: 6px 8px;
   border-radius: 8px;
-  background: #e4efe7;
-  color: #1f5c3f;
+  background: var(--app-accent-soft-background);
+  color: var(--app-accent-soft-text);
   font-weight: 800;
 }
 
@@ -419,14 +429,14 @@ onBeforeUnmount(() => {
 
 h2 {
   margin: 0 0 4px;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 17px;
   font-weight: 800;
 }
 
 p {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 14px;
 }
 
@@ -434,7 +444,7 @@ p {
   display: grid;
   min-width: 64px;
   justify-items: end;
-  color: #1f2d24;
+  color: var(--app-text-strong);
 }
 
 .weight strong {
@@ -442,7 +452,7 @@ p {
 }
 
 .weight span {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 
@@ -452,7 +462,7 @@ p {
   place-items: center;
   align-content: center;
   gap: 14px;
-  color: #607067;
+  color: var(--app-text-muted);
   text-align: center;
 }
 </style>

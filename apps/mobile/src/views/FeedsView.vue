@@ -2,10 +2,10 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/bulls" />
-        </ion-buttons>
         <ion-title>Корма</ion-title>
+        <ion-buttons slot="end">
+          <theme-toggle-button />
+        </ion-buttons>
       </ion-toolbar>
     </ion-header>
 
@@ -27,14 +27,6 @@
         </section>
 
         <template v-else>
-          <section class="intro-card">
-            <p class="intro-card__title">Учет кормов</p>
-            <p class="intro-card__text">
-              Расчеты пока идут по всем бычкам в учете. Когда в модели появятся статусы,
-              переключим формулу на активных.
-            </p>
-          </section>
-
           <section class="feed-grid">
             <article
               v-for="feed in feeds"
@@ -77,9 +69,14 @@
                 </div>
               </dl>
 
-              <section class="summary-banner" :class="{ 'summary-banner--empty': !hasEnoughData(feed) }">
-                <span>Хватит на</span>
-                <strong>{{ formatDaysLeft(feed.daysLeft) }}</strong>
+              <section class="summary-banner" :class="getSummaryBannerClass(feed)">
+                <div class="summary-banner__copy">
+                  <span>Период запаса</span>
+                  <small v-if="hasEnoughData(feed)">
+                    {{ getFeedPeriodCaption(feed) }}
+                  </small>
+                </div>
+                <strong>{{ formatFeedPeriod(feed) }}</strong>
               </section>
 
               <p v-if="!hasEnoughData(feed)" class="feed-card__note">
@@ -109,25 +106,45 @@
       </ion-header>
 
       <ion-content class="modal-content">
-        <form
-          v-if="editingFeed"
-          class="modal-form"
-          @submit.prevent="saveEditingFeed"
-        >
+        <form v-if="editingFeed" class="modal-form" @submit.prevent="saveEditingFeed">
           <section class="modal-summary">
-            <div class="modal-summary__item">
+            <div
+              class="modal-summary__item"
+              :class="{
+                'modal-summary__item--warning': isAvailabilityWarning(editingFeed.daysLeft),
+              }"
+            >
               <span>Сейчас</span>
-              <strong>{{ formatDaysLeft(editingFeed.daysLeft) }}</strong>
+              <strong
+                :class="{
+                  'modal-summary__value--warning': isAvailabilityWarning(editingFeed.daysLeft),
+                }"
+              >
+                {{ formatFeedPeriod(editingFeed) }}
+              </strong>
               <small>{{ formatDailyConsumption(editingFeed.dailyConsumptionKg) }} в день</small>
             </div>
-            <div class="modal-summary__item modal-summary__item--accent">
+            <div
+              class="modal-summary__item modal-summary__item--accent"
+              :class="{
+                'modal-summary__item--warning': isAvailabilityWarning(editingFeedPreview.daysLeft),
+              }"
+            >
               <span>После сохранения</span>
-              <strong>{{ formatDaysLeft(editingFeedPreview.daysLeft) }}</strong>
-              <small>{{ formatDailyConsumption(editingFeedPreview.dailyConsumptionKg) }} в день</small>
+              <strong
+                :class="{
+                  'modal-summary__value--warning': isAvailabilityWarning(
+                    editingFeedPreview.daysLeft,
+                  ),
+                }"
+              >
+                {{ formatPreviewPeriod(editingFeedPreview) }}
+              </strong>
+              <small>
+                {{ formatDailyConsumption(editingFeedPreview.dailyConsumptionKg) }} в день
+              </small>
             </div>
           </section>
-
-         
 
           <p class="modal-state" :class="{ 'modal-state--muted': !isEditingFeedDirty }">
             {{ editingFeedModalHint }}
@@ -143,7 +160,9 @@
                 <span class="modal-section__eyebrow">Остаток</span>
                 <strong>{{ formatStock(editingFeedPreview.currentStockKg) }}</strong>
               </div>
-              <p class="modal-section__text">Сколько килограммов этого корма есть сейчас в наличии.</p>
+              <p class="modal-section__text">
+                Сколько килограммов этого корма есть сейчас в наличии.
+              </p>
             </section>
             <ion-item>
               <ion-input
@@ -212,7 +231,6 @@
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
   IonButtons,
   IonContent,
@@ -233,8 +251,24 @@ import { createOutline, saveOutline } from 'ionicons/icons';
 import { computed, reactive, ref } from 'vue';
 import type { FeedResponse, FeedType } from '@bulki-bull/shared';
 
+import ThemeToggleButton from '../components/ThemeToggleButton.vue';
 import { api } from '../services/api';
-import { feedHints, feedLabels, formatKg, formatNumber } from '../utils/formatters';
+import { syncFeedNotifications } from '../services/feedNotifications';
+import {
+  buildFeedAvailabilityPreview,
+  getFeedAvailability,
+  hasFeedPeriod,
+  isFeedExpired,
+  isFeedWarning,
+} from '../utils/feedAvailability';
+import {
+  feedHints,
+  feedLabels,
+  formatDateRu,
+  formatFeedPeriodRu,
+  formatKg,
+  formatNumber,
+} from '../utils/formatters';
 
 type FeedDraft = {
   currentStockKg: string;
@@ -264,7 +298,8 @@ const formErrors = reactive<Record<FeedType, string>>({
 });
 
 const syncDraft = (feed: FeedResponse): void => {
-  drafts[feed.type].currentStockKg = feed.currentStockKg === null ? '' : String(feed.currentStockKg);
+  drafts[feed.type].currentStockKg =
+    feed.currentStockKg === null ? '' : String(feed.currentStockKg);
   drafts[feed.type].consumptionPerBullPerDayKg =
     feed.consumptionPerBullPerDayKg === null ? '' : String(feed.consumptionPerBullPerDayKg);
 };
@@ -290,6 +325,7 @@ const loadFeeds = async (): Promise<void> => {
     const response = await api.listFeeds();
     feeds.value = response;
     syncDrafts(response);
+    void syncFeedNotifications(response);
   } catch (requestError) {
     error.value =
       requestError instanceof Error ? requestError.message : 'Не удалось загрузить корма';
@@ -315,8 +351,6 @@ const isEditingFeedSaving = computed(
 const editingFeedTitle = computed(() =>
   editingFeed.value ? `Изменить: ${feedLabels[editingFeed.value.type]}` : 'Изменить корм',
 );
-
-const roundTo = (value: number, digits: number): number => Number(value.toFixed(digits));
 
 const resetFormError = (type: FeedType): void => {
   formErrors[type] = '';
@@ -370,28 +404,24 @@ const editingFeedPreview = computed(() => {
       consumptionPerBullPerDayKg: null,
       dailyConsumptionKg: null,
       daysLeft: null,
+      periodStartDate: null,
+      depletionDate: null,
     };
   }
 
   const type = editingFeed.value.type;
   const currentStockKg = parseDraftNumber(drafts[type].currentStockKg);
   const consumptionPerBullPerDayKg = parseDraftNumber(drafts[type].consumptionPerBullPerDayKg);
-  const dailyConsumptionKg =
-    editingFeed.value.bullsCount > 0 &&
-    consumptionPerBullPerDayKg !== null &&
-    consumptionPerBullPerDayKg > 0
-      ? roundTo(editingFeed.value.bullsCount * consumptionPerBullPerDayKg, 2)
-      : null;
-  const daysLeft =
-    currentStockKg === null || dailyConsumptionKg === null
-      ? null
-      : roundTo(currentStockKg / dailyConsumptionKg, 2);
+  const availability = buildFeedAvailabilityPreview({
+    bullsCount: editingFeed.value.bullsCount,
+    currentStockKg,
+    consumptionPerBullPerDayKg,
+  });
 
   return {
     currentStockKg,
     consumptionPerBullPerDayKg,
-    dailyConsumptionKg,
-    daysLeft,
+    ...availability,
   };
 });
 
@@ -419,7 +449,11 @@ const isEditingFeedDraftValid = computed(
 );
 
 const isEditingFeedSaveDisabled = computed(
-  () => !editingFeed.value || isEditingFeedSaving.value || !isEditingFeedDraftValid.value || !isEditingFeedDirty.value,
+  () =>
+    !editingFeed.value ||
+    isEditingFeedSaving.value ||
+    !isEditingFeedDraftValid.value ||
+    !isEditingFeedDirty.value,
 );
 
 const editingFeedModalHint = computed(() => {
@@ -432,18 +466,18 @@ const editingFeedModalHint = computed(() => {
   }
 
   if (!isEditingFeedDraftValid.value) {
-    return 'Заполните оба поля, чтобы пересчитать расход и дни остатка.';
+    return 'Заполните оба поля, чтобы пересчитать расход и дату окончания запаса.';
   }
 
   if (editingFeed.value.bullsCount === 0) {
-    return 'Сейчас в учете нет бычков, поэтому предпросмотр дней остатка будет недоступен.';
+    return 'Сейчас в учете нет бычков, поэтому предпросмотр периода запаса будет недоступен.';
   }
 
   if (editingFeedPreview.value.consumptionPerBullPerDayKg === 0) {
-    return 'При нулевом расходе расход в день и дни остатка не рассчитываются.';
+    return 'При нулевом расходе расход в день и дата окончания запаса не рассчитываются.';
   }
 
-  return 'Предпросмотр справа обновляется по мере ввода, так что можно быстро проверить сценарий до сохранения.';
+  return 'Предпросмотр справа обновляется по мере ввода, чтобы можно было сразу увидеть новый период запаса.';
 });
 
 const presentSavedToast = async (type: FeedType): Promise<void> => {
@@ -485,6 +519,7 @@ const saveEditingFeed = async (): Promise<void> => {
     syncDraft(updatedFeed);
     editingType.value = null;
     window.dispatchEvent(new CustomEvent(FEEDS_UPDATED_EVENT));
+    void syncFeedNotifications(feeds.value);
     await presentSavedToast(type);
   } catch (requestError) {
     formErrors[type] =
@@ -494,10 +529,25 @@ const saveEditingFeed = async (): Promise<void> => {
   }
 };
 
-const hasEnoughData = (feed: FeedResponse): boolean =>
-  feed.dailyConsumptionKg !== null && feed.daysLeft !== null;
+type FeedPeriodSource = {
+  periodStartDate: string | null;
+  depletionDate: string | null;
+};
 
-const formatStock = (value: number | null): string => (value === null ? '—' : `${formatKg(value)} кг`);
+const hasEnoughData = (feed: FeedResponse): boolean => hasFeedPeriod(getFeedAvailability(feed));
+
+const isAvailabilityWarning = (daysLeft: number | null): boolean => isFeedWarning(daysLeft);
+
+const formatPeriod = (source: FeedPeriodSource): string => {
+  if (!source.periodStartDate || !source.depletionDate) {
+    return 'Недостаточно данных';
+  }
+
+  return formatFeedPeriodRu(source.periodStartDate, source.depletionDate);
+};
+
+const formatStock = (value: number | null): string =>
+  value === null ? '—' : `${formatKg(value)} кг`;
 
 const formatPerBull = (value: number | null): string =>
   value === null ? '—' : `${formatNumber(value, 2)} кг`;
@@ -505,23 +555,52 @@ const formatPerBull = (value: number | null): string =>
 const formatDailyConsumption = (value: number | null): string =>
   value === null ? 'Недостаточно данных' : `${formatNumber(value, 2)} кг`;
 
-const formatDaysLeft = (value: number | null): string =>
-  value === null ? 'Недостаточно данных' : `${formatNumber(value, 1)} дн.`;
+const formatFeedPeriod = (feed: FeedResponse): string => formatPeriod(getFeedAvailability(feed));
+
+const formatPreviewPeriod = (preview: FeedPeriodSource): string => formatPeriod(preview);
+
+const getSummaryBannerClass = (feed: FeedResponse): Record<string, boolean> => {
+  const availability = getFeedAvailability(feed);
+
+  return {
+    'summary-banner--empty': !hasFeedPeriod(availability),
+    'summary-banner--warning':
+      hasFeedPeriod(availability) && isAvailabilityWarning(availability.daysLeft),
+  };
+};
+
+const getFeedPeriodCaption = (feed: FeedResponse): string => {
+  const availability = getFeedAvailability(feed);
+
+  if (!hasFeedPeriod(availability)) {
+    return 'Период пока недоступен';
+  }
+
+  if (isFeedExpired(availability.daysLeft)) {
+    return `Запас закончился ${formatDateRu(availability.depletionDate)}`;
+  }
+
+  if (isAvailabilityWarning(availability.daysLeft)) {
+    return `До окончания меньше 10 дней: ${formatDateRu(availability.depletionDate)}`;
+  }
+
+  return `До ${formatDateRu(availability.depletionDate)}`;
+};
 
 const getFeedNote = (feed: FeedResponse): string => {
   if (feed.bullsCount === 0) {
-    return 'Нет бычков в учете: расход и дни остатка появятся после добавления животных.';
+    return 'Нет бычков в учете: расход и период запаса появятся после добавления животных.';
   }
 
   if (feed.currentStockKg === null || feed.consumptionPerBullPerDayKg === null) {
-    return 'Заполните остаток и расход на голову, чтобы увидеть расчет.';
+    return 'Заполните остаток и расход на голову, чтобы увидеть период запаса.';
   }
 
   if (feed.consumptionPerBullPerDayKg <= 0) {
-    return 'Укажите расход на голову больше 0, чтобы посчитать дни остатка.';
+    return 'Укажите расход на голову больше 0, чтобы посчитать дату окончания запаса.';
   }
 
-  return 'Недостаточно данных для расчета. Проверьте остаток и расход на голову.';
+  return 'Недостаточно данных для расчета периода. Проверьте остаток и расход на голову.';
 };
 
 onIonViewWillEnter(() => {
@@ -532,10 +611,8 @@ onIonViewWillEnter(() => {
 <style scoped>
 .screen {
   min-height: 100%;
-  padding: 16px;
-  background:
-    radial-gradient(circle at top left, rgba(123, 160, 109, 0.12), transparent 35%),
-    linear-gradient(180deg, #f6f8f3 0%, #eef3ed 100%);
+  padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
+  background: var(--app-feeds-background);
 }
 
 .state {
@@ -544,16 +621,16 @@ onIonViewWillEnter(() => {
   place-items: center;
   align-content: center;
   gap: 14px;
-  color: #607067;
+  color: var(--app-text-muted);
   text-align: center;
 }
 
 .intro-card,
 .feed-card {
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 18px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 16px 34px rgba(40, 69, 52, 0.08);
+  background: var(--app-surface-raised);
+  box-shadow: var(--app-shadow-card);
   backdrop-filter: blur(6px);
 }
 
@@ -564,14 +641,14 @@ onIonViewWillEnter(() => {
 
 .intro-card__title {
   margin: 0 0 6px;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 15px;
   font-weight: 800;
 }
 
 .intro-card__text {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
   line-height: 1.45;
 }
 
@@ -585,15 +662,11 @@ onIonViewWillEnter(() => {
 }
 
 .feed-card--hay {
-  background:
-    linear-gradient(180deg, rgba(243, 236, 209, 0.55), rgba(255, 255, 255, 0.95)),
-    rgba(255, 255, 255, 0.92);
+  background: var(--app-feed-card-hay-background);
 }
 
 .feed-card--compound_feed {
-  background:
-    linear-gradient(180deg, rgba(222, 233, 221, 0.7), rgba(255, 255, 255, 0.95)),
-    rgba(255, 255, 255, 0.92);
+  background: var(--app-feed-card-compound-background);
 }
 
 .feed-card__header {
@@ -611,7 +684,7 @@ onIonViewWillEnter(() => {
 .feed-card__eyebrow {
   display: block;
   margin-bottom: 4px;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -620,7 +693,7 @@ onIonViewWillEnter(() => {
 
 .feed-card__header h2 {
   margin: 0;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 24px;
   line-height: 1.1;
 }
@@ -634,20 +707,20 @@ onIonViewWillEnter(() => {
 
 .metric {
   padding: 12px;
-  border: 1px solid rgba(95, 112, 103, 0.12);
+  border: 1px solid var(--app-border-subtle);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--app-metric-surface);
 }
 
 .metric dt {
   margin: 0 0 6px;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 
 .metric dd {
   margin: 0;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 16px;
   font-weight: 800;
 }
@@ -659,27 +732,51 @@ onIonViewWillEnter(() => {
   gap: 12px;
   padding: 14px;
   border-radius: 16px;
-  background: #2f6f4e;
+  background: var(--app-summary-banner-background);
   color: #ffffff;
+}
+
+.summary-banner__copy {
+  display: grid;
+  gap: 4px;
 }
 
 .summary-banner span {
   font-size: 14px;
 }
 
+.summary-banner__copy small {
+  font-size: 12px;
+  line-height: 1.35;
+  opacity: 0.88;
+}
+
 .summary-banner strong {
   font-size: 22px;
-  line-height: 1.1;
+  line-height: 1.25;
   text-align: right;
+  white-space: normal;
 }
 
 .summary-banner--empty {
-  background: #708076;
+  background: var(--app-summary-banner-muted-background);
+}
+
+.summary-banner--warning {
+  border: 1px solid var(--app-danger-soft-border);
+  background: var(--app-danger-soft-background);
+  color: var(--app-danger-soft-text);
+}
+
+.summary-banner--warning strong,
+.summary-banner--warning .summary-banner__copy small {
+  color: var(--app-danger-soft-text);
+  opacity: 1;
 }
 
 .feed-card__note {
   margin: 10px 0 0;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -698,50 +795,59 @@ onIonViewWillEnter(() => {
 
 .modal-summary__item {
   padding: 12px;
-  border: 1px solid rgba(95, 112, 103, 0.12);
+  border: 1px solid var(--app-border-subtle);
   border-radius: 14px;
-  background: rgba(244, 247, 243, 0.88);
+  background: var(--app-surface-subtle);
 }
 
 .modal-summary__item--accent {
-  border-color: rgba(47, 111, 78, 0.24);
-  background: rgba(227, 239, 232, 0.92);
+  border-color: var(--app-accent-soft-border);
+  background: var(--app-accent-soft-background);
+}
+
+.modal-summary__item--warning {
+  border-color: var(--app-danger-soft-border);
+  background: var(--app-danger-soft-background);
 }
 
 .modal-summary__item span {
   display: block;
   margin-bottom: 6px;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 
 .modal-summary__item strong {
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 17px;
 }
 
 .modal-summary__item small {
   display: block;
   margin-top: 6px;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
+}
+
+.modal-summary__value--warning {
+  color: var(--app-danger-soft-text);
 }
 
 .modal-copy {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
   line-height: 1.45;
 }
 
 .modal-state {
   margin: -4px 0 0;
-  color: #1f5c3f;
+  color: var(--app-accent-soft-text);
   font-size: 13px;
   line-height: 1.45;
 }
 
 .modal-state--muted {
-  color: #607067;
+  color: var(--app-text-muted);
 }
 
 .modal-fields {
@@ -762,7 +868,7 @@ onIonViewWillEnter(() => {
 }
 
 .modal-section__eyebrow {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
   font-weight: 800;
   letter-spacing: 0.04em;
@@ -770,37 +876,37 @@ onIonViewWillEnter(() => {
 }
 
 .modal-section__head strong {
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 15px;
 }
 
 .modal-section__text {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 13px;
   line-height: 1.4;
 }
 
 ion-item {
-  --background: rgba(255, 255, 255, 0.92);
+  --background: var(--app-surface-raised);
   --border-radius: 12px;
   --padding-start: 12px;
   --inner-padding-end: 12px;
   --min-height: 64px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 12px;
 }
 
 .edit-form__hint {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
   line-height: 1.4;
 }
 
 .modal-footer ion-toolbar {
-  --background: rgba(255, 255, 255, 0.98);
-  --border-color: rgba(95, 112, 103, 0.12);
+  --background: var(--app-modal-footer-background);
+  --border-color: var(--app-border-subtle);
   padding: 8px 12px 18px;
 }
 
@@ -811,10 +917,10 @@ ion-item {
 
 .error-block {
   padding: 12px;
-  border: 1px solid #e7b3a9;
+  border: 1px solid var(--app-danger-soft-border);
   border-radius: 12px;
-  background: #fff2ee;
-  color: #8a321f;
+  background: var(--app-danger-soft-background);
+  color: var(--app-danger-soft-text);
   white-space: pre-line;
 }
 

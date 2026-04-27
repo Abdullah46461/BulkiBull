@@ -2,9 +2,6 @@
   <ion-page>
     <ion-header translucent>
       <ion-toolbar>
-        <ion-buttons slot="start">
-          <ion-back-button default-href="/bulls" />
-        </ion-buttons>
         <ion-title>{{ isEdit ? 'Редактирование' : 'Новый бычок' }}</ion-title>
       </ion-toolbar>
     </ion-header>
@@ -42,9 +39,30 @@
                 required
               />
             </ion-item>
-            <ion-item>
-              <ion-input v-model="form.breed" label="Порода" label-placement="stacked" />
-            </ion-item>
+            <section class="breed-field">
+              <ion-item>
+                <ion-input
+                  v-model="form.breed"
+                  label="Порода"
+                  label-placement="stacked"
+                  placeholder="Начните вводить или выберите из списка"
+                  @ion-focus="openBreedSuggestions"
+                  @ion-blur="scheduleBreedSuggestionsClose"
+                />
+              </ion-item>
+              <div v-if="showBreedSuggestions" class="breed-suggestions">
+                <button
+                  v-for="breed in filteredBreedOptions"
+                  :key="breed"
+                  type="button"
+                  class="breed-suggestion"
+                  @pointerdown.prevent="selectBreed(breed)"
+                  @click="selectBreed(breed)"
+                >
+                  {{ breed }}
+                </button>
+              </div>
+            </section>
             <ion-item>
               <ion-select
                 v-model="form.sex"
@@ -144,9 +162,7 @@
 
 <script setup lang="ts">
 import {
-  IonBackButton,
   IonButton,
-  IonButtons,
   IonContent,
   IonHeader,
   IonIcon,
@@ -162,10 +178,15 @@ import {
   onIonViewWillEnter,
 } from '@ionic/vue';
 import { Camera, CameraDirection, MediaTypeSelection, type MediaResult } from '@capacitor/camera';
+import {
+  bullBreedValues,
+  type BullSex,
+  type CreateBullInput,
+  type UpdateBullInput,
+} from '@bulki-bull/shared';
 import { cameraOutline, imagesOutline, saveOutline, trashOutline } from 'ionicons/icons';
-import { computed, reactive, ref } from 'vue';
+import { computed, onBeforeUnmount, reactive, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import type { BullSex, CreateBullInput, UpdateBullInput } from '@bulki-bull/shared';
 
 import { api } from '../services/api';
 import { normalizePhotoUrl, photoSourceToDataUrl } from '../utils/photo';
@@ -210,10 +231,58 @@ const form = reactive<BullForm>({
 
 const PHOTO_MAX_DIMENSION = 1280;
 const PHOTO_QUALITY = 85;
+const BREED_SUGGESTIONS_CLOSE_DELAY_MS = 150;
 
 const optionalText = (value: string): string | undefined => {
   const trimmed = value.trim();
   return trimmed.length ? trimmed : undefined;
+};
+
+const breedSuggestionsOpen = ref(false);
+const breedSuggestionsCloseTimeout = ref<number | null>(null);
+
+const clearBreedSuggestionsCloseTimeout = (): void => {
+  if (breedSuggestionsCloseTimeout.value === null) {
+    return;
+  }
+
+  window.clearTimeout(breedSuggestionsCloseTimeout.value);
+  breedSuggestionsCloseTimeout.value = null;
+};
+
+const filteredBreedOptions = computed(() => {
+  const query = form.breed.trim().toLocaleLowerCase('ru-RU');
+
+  return bullBreedValues.filter((breed) => {
+    if (!query) {
+      return true;
+    }
+
+    return breed.toLocaleLowerCase('ru-RU').includes(query);
+  });
+});
+
+const showBreedSuggestions = computed(
+  () => breedSuggestionsOpen.value && filteredBreedOptions.value.length > 0,
+);
+
+const openBreedSuggestions = (): void => {
+  clearBreedSuggestionsCloseTimeout();
+  breedSuggestionsOpen.value = true;
+};
+
+const scheduleBreedSuggestionsClose = (): void => {
+  clearBreedSuggestionsCloseTimeout();
+  breedSuggestionsCloseTimeout.value = window.setTimeout(() => {
+    breedSuggestionsOpen.value = false;
+    breedSuggestionsCloseTimeout.value = null;
+  }, BREED_SUGGESTIONS_CLOSE_DELAY_MS);
+};
+
+const selectBreed = (breed: string): void => {
+  clearBreedSuggestionsCloseTimeout();
+  form.breed = breed;
+  breedSuggestionsOpen.value = false;
 };
 
 const isPhotoSelectionCancelled = (value: unknown): boolean => {
@@ -373,13 +442,17 @@ const submit = async (): Promise<void> => {
 onIonViewWillEnter(() => {
   void fillForm();
 });
+
+onBeforeUnmount(() => {
+  clearBreedSuggestionsCloseTimeout();
+});
 </script>
 
 <style scoped>
 .screen {
   min-height: 100%;
-  padding: 16px;
-  background: #f4f6f2;
+  padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
+  background: var(--app-screen-background);
 }
 
 .form-section {
@@ -388,13 +461,46 @@ onIonViewWillEnter(() => {
   margin-bottom: 18px;
 }
 
+.breed-field {
+  width: 100%;
+}
+
 ion-item {
-  --background: #ffffff;
+  --background: var(--app-surface);
   --border-radius: 8px;
   --padding-start: 12px;
   --inner-padding-end: 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
+}
+
+.breed-field ion-item {
+  margin: 0;
+}
+
+.breed-suggestions {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  margin-top: 6px;
+  border: 1px solid var(--app-border-color);
+  border-radius: 8px;
+  background: var(--app-surface);
+}
+
+.breed-suggestion {
+  padding: 10px 12px;
+  color: var(--app-accent-soft-text);
+  text-align: left;
+  background: var(--app-surface-muted);
+  border: 1px solid var(--app-border-strong);
+  border-radius: 8px;
+}
+
+.field-hint {
+  margin: 8px 2px 0;
+  color: var(--app-text-muted);
+  font-size: 13px;
 }
 
 .photo-section {
@@ -406,9 +512,9 @@ ion-item {
 .photo-empty {
   overflow: hidden;
   min-height: 180px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 .photo-preview img {
@@ -422,7 +528,7 @@ ion-item {
   display: grid;
   place-items: center;
   padding: 16px;
-  color: #607067;
+  color: var(--app-text-muted);
   text-align: center;
 }
 
@@ -433,17 +539,17 @@ ion-item {
 }
 
 .photo-hint {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .error-block {
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid #e7b3a9;
+  border: 1px solid var(--app-danger-soft-border);
   border-radius: 8px;
-  background: #fff2ee;
-  color: #8a321f;
+  background: var(--app-danger-soft-background);
+  color: var(--app-danger-soft-text);
   white-space: pre-line;
 }
 
@@ -457,7 +563,7 @@ ion-item {
   place-items: center;
   align-content: center;
   gap: 14px;
-  color: #607067;
+  color: var(--app-text-muted);
   text-align: center;
 }
 </style>

@@ -119,8 +119,8 @@ const submit = async (): Promise<void> => {
 <style scoped>
 .screen {
   min-height: 100%;
-  padding: 16px;
-  background: #f4f6f2;
+  padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
+  background: var(--app-screen-background);
 }
 
 .form-section {
@@ -130,21 +130,21 @@ const submit = async (): Promise<void> => {
 }
 
 ion-item {
-  --background: #ffffff;
+  --background: var(--app-surface);
   --border-radius: 8px;
   --padding-start: 12px;
   --inner-padding-end: 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
 }
 
 .error-block {
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid #e7b3a9;
+  border: 1px solid var(--app-danger-soft-border);
   border-radius: 8px;
-  background: #fff2ee;
-  color: #8a321f;
+  background: var(--app-danger-soft-background);
+  color: var(--app-danger-soft-text);
   white-space: pre-line;
 }
 

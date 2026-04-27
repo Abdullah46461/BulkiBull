@@ -14,6 +14,20 @@ export const BullSexSchema = z.enum(bullSexValues);
 
 export type BullSex = z.infer<typeof BullSexSchema>;
 
+export const bullBreedValues = [
+  'Абердин-ангусская',
+  'Герефордская',
+  'Калмыцкая',
+  'Казахская белоголовая',
+  'Русская комолая',
+  'Симментальская',
+  'Шаролезская',
+  'Лимузинская',
+  'Шортгорнская',
+] as const;
+
+export type BullBreed = (typeof bullBreedValues)[number];
+
 export const feedTypeValues = ['hay', 'compound_feed'] as const;
 
 export const FeedTypeSchema = z.enum(feedTypeValues);
@@ -220,6 +234,8 @@ export const FeedResponseSchema = z.object({
   bullsCount: z.number().int().nonnegative(),
   dailyConsumptionKg: nullableNumberSchema,
   daysLeft: nullableNumberSchema,
+  periodStartDate: nullableStringSchema,
+  depletionDate: nullableStringSchema,
   createdAt: nullableStringSchema,
   updatedAt: nullableStringSchema,
 });
@@ -233,6 +249,88 @@ export type WeightRecordResponse = z.infer<typeof WeightRecordResponseSchema>;
 export type BullResponse = z.infer<typeof BullResponseSchema>;
 export type BullDetailResponse = z.infer<typeof BullDetailResponseSchema>;
 export type FeedResponse = z.infer<typeof FeedResponseSchema>;
+export type FeedAvailability = Pick<
+  FeedResponse,
+  'dailyConsumptionKg' | 'daysLeft' | 'periodStartDate' | 'depletionDate'
+>;
+
+export type CalculateFeedAvailabilityInput = {
+  bullsCount: number;
+  currentStockKg: number | null;
+  consumptionPerBullPerDayKg: number | null;
+};
+
+const roundTo = (value: number, digits: number): number => Number(value.toFixed(digits));
+
+const toLocalDateString = (date: Date): string => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
+const startOfDay = (date: Date): Date =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const addDays = (date: Date, days: number): Date => {
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + days);
+  return nextDate;
+};
+
+export const calculateFeedDailyConsumptionKg = (
+  bullsCount: number,
+  consumptionPerBullPerDayKg: number | null,
+): number | null => {
+  if (bullsCount <= 0 || consumptionPerBullPerDayKg === null || consumptionPerBullPerDayKg <= 0) {
+    return null;
+  }
+
+  return roundTo(bullsCount * consumptionPerBullPerDayKg, 2);
+};
+
+export const calculateFeedDaysLeft = (
+  currentStockKg: number | null,
+  dailyConsumptionKg: number | null,
+): number | null => {
+  if (currentStockKg === null || dailyConsumptionKg === null) {
+    return null;
+  }
+
+  return roundTo(currentStockKg / dailyConsumptionKg, 2);
+};
+
+export const calculateFeedDepletionDate = (
+  daysLeft: number | null,
+  now = new Date(),
+): string | null => {
+  if (daysLeft === null) {
+    return null;
+  }
+
+  const daysCovered = Math.max(Math.ceil(Math.max(daysLeft, 0)) - 1, 0);
+  return toLocalDateString(addDays(startOfDay(now), daysCovered));
+};
+
+export const calculateFeedAvailability = (
+  input: CalculateFeedAvailabilityInput,
+  now = new Date(),
+): FeedAvailability => {
+  const dailyConsumptionKg = calculateFeedDailyConsumptionKg(
+    input.bullsCount,
+    input.consumptionPerBullPerDayKg,
+  );
+  const daysLeft = calculateFeedDaysLeft(input.currentStockKg, dailyConsumptionKg);
+  const periodStartDate = daysLeft === null ? null : toLocalDateString(startOfDay(now));
+
+  return {
+    dailyConsumptionKg,
+    daysLeft,
+    periodStartDate,
+    depletionDate: calculateFeedDepletionDate(daysLeft, now),
+  };
+};
 
 export const calculateAgeInMonths = (birthDate: Date, now = new Date()): number => {
   let months = (now.getFullYear() - birthDate.getFullYear()) * 12;

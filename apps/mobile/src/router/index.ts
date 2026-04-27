@@ -17,6 +17,10 @@ const router = createRouter({
       path: '/bulls',
       name: 'bulls',
       component: BullListView,
+      meta: {
+        primaryFooter: true,
+        footerView: 'bulls',
+      },
     },
     {
       path: '/bulls/new',
@@ -25,12 +29,20 @@ const router = createRouter({
       props: {
         mode: 'create',
       },
+      meta: {
+        primaryFooter: true,
+        footerView: 'create',
+      },
     },
     {
       path: '/bulls/:id',
       name: 'bull-detail',
       component: BullDetailView,
       props: true,
+      meta: {
+        primaryFooter: true,
+        footerView: 'bulls',
+      },
     },
     {
       path: '/bulls/:id/edit',
@@ -40,17 +52,29 @@ const router = createRouter({
         mode: 'edit',
         id: route.params.id,
       }),
+      meta: {
+        primaryFooter: true,
+        footerView: 'bulls',
+      },
     },
     {
       path: '/bulls/:id/weights/new',
       name: 'weight-create',
       component: AddWeightView,
       props: true,
+      meta: {
+        primaryFooter: true,
+        footerView: 'bulls',
+      },
     },
     {
       path: '/feeds',
       name: 'feeds',
       component: FeedsView,
+      meta: {
+        primaryFooter: true,
+        footerView: 'feeds',
+      },
     },
   ],
 });

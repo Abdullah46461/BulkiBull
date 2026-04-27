@@ -287,8 +287,8 @@ onIonViewWillEnter(() => {
 <style scoped>
 .screen {
   min-height: 100%;
-  padding: 16px;
-  background: #f4f6f2;
+  padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
+  background: var(--app-screen-background);
 }
 
 .hero {
@@ -304,10 +304,10 @@ onIonViewWillEnter(() => {
   width: 76px;
   height: 76px;
   place-items: center;
-  border: 1px solid #cfe0d2;
+  border: 1px solid var(--app-border-strong);
   border-radius: 8px;
-  background: #e4efe7;
-  color: #1f5c3f;
+  background: var(--app-accent-soft-background);
+  color: var(--app-accent-soft-text);
   font-size: 18px;
   font-weight: 900;
 }
@@ -315,7 +315,7 @@ onIonViewWillEnter(() => {
 .hero-photo {
   width: 76px;
   height: 76px;
-  border: 1px solid #cfe0d2;
+  border: 1px solid var(--app-border-strong);
   border-radius: 8px;
   object-fit: cover;
 }
@@ -336,7 +336,7 @@ onIonViewWillEnter(() => {
 .muted,
 p {
   margin: 0;
-  color: #607067;
+  color: var(--app-text-muted);
 }
 
 .eyebrow {
@@ -348,14 +348,14 @@ p {
 
 h1 {
   margin: 0 0 6px;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 28px;
   line-height: 1.15;
 }
 
 h2 {
   margin: 0;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 20px;
 }
 
@@ -369,9 +369,9 @@ h2 {
 .stat,
 .info-block,
 .empty-history {
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
-  background: #ffffff;
+  background: var(--app-surface);
 }
 
 .stat {
@@ -383,12 +383,12 @@ h2 {
 
 .stat span,
 dt {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 13px;
 }
 
 .stat strong {
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 18px;
 }
 
@@ -404,10 +404,10 @@ dt {
 }
 
 .danger-zone__button {
-  --background: #8f3d29;
-  --background-hover: #823421;
-  --background-activated: #732d1c;
-  --background-focused: #823421;
+  --background: var(--app-danger-solid);
+  --background-hover: var(--app-danger-solid-hover);
+  --background-activated: var(--app-danger-solid-active);
+  --background-focused: var(--app-danger-solid-hover);
   --border-radius: 999px;
   --box-shadow: none;
   --padding-start: 18px;
@@ -423,7 +423,7 @@ dt {
   display: grid;
   grid-template-rows: auto 1fr;
   padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 20px);
-  background: rgba(14, 23, 19, 0.92);
+  background: var(--app-overlay-backdrop);
   backdrop-filter: blur(6px);
 }
 
@@ -436,7 +436,7 @@ dt {
   padding: 0;
   border: 0;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.16);
+  background: var(--app-overlay-control);
   color: #ffffff;
 }
 
@@ -452,7 +452,7 @@ dt {
   max-height: min(78vh, 960px);
   border-radius: 18px;
   object-fit: contain;
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--app-overlay-shadow);
 }
 
 dl {
@@ -468,7 +468,7 @@ dl div {
 
 dd {
   margin: 0;
-  color: #1f2d24;
+  color: var(--app-text-strong);
 }
 
 .section-title {
@@ -486,17 +486,17 @@ dd {
 }
 
 .weight-item {
-  --background: #ffffff;
+  --background: var(--app-surface);
   --border-radius: 8px;
   --inner-padding-end: 12px;
   --padding-start: 12px;
-  border: 1px solid #dfe8df;
+  border: 1px solid var(--app-border-color);
   border-radius: 8px;
 }
 
 .weight-item h3 {
   margin: 0 0 4px;
-  color: #1f2d24;
+  color: var(--app-text-strong);
   font-size: 16px;
 }
 
@@ -504,7 +504,7 @@ dd {
   display: grid;
   min-width: 64px;
   justify-items: end;
-  color: #1f2d24;
+  color: var(--app-text-strong);
 }
 
 .weight-value strong {
@@ -512,13 +512,13 @@ dd {
 }
 
 .weight-value span {
-  color: #607067;
+  color: var(--app-text-muted);
   font-size: 12px;
 }
 
 .empty-history {
   padding: 18px;
-  color: #607067;
+  color: var(--app-text-muted);
 }
 
 .state {
@@ -527,17 +527,17 @@ dd {
   place-items: center;
   align-content: center;
   gap: 14px;
-  color: #607067;
+  color: var(--app-text-muted);
   text-align: center;
 }
 
 .error-block {
   padding: 12px;
   margin-bottom: 12px;
-  border: 1px solid #e7b3a9;
+  border: 1px solid var(--app-danger-soft-border);
   border-radius: 8px;
-  background: #fff2ee;
-  color: #8a321f;
+  background: var(--app-danger-soft-background);
+  color: var(--app-danger-soft-text);
   white-space: pre-line;
 }
 
