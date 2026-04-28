@@ -32,10 +32,12 @@ project: Bulki Bull
 - [[текущий вес вычисляется из последней записи взвешивания]]
 - [[удаление бычка в MVP требует подтверждения и удаляет историю веса]]
 - [[фото в MVP хранится как photoUrl]]
+- [[email auth в MVP требует подтверждения почты до входа и использует API_PUBLIC_URL для ссылок]]
 - [[сохраненный период корма рассчитывается в API и отдается готовыми датами]]
 - [[mobile тема переключается inline toggle без отдельного экрана]]
 - [[mobile использует глобальный footer tab bar через App shell]]
 - [[mobile сжимает фото из галереи перед сохранением в photoUrl]]
+- [[API integration тесты поднимают Nest приложение на отдельной Prisma schema]]
 - [[desktop web использует PWA Elements для Camera.takePhoto]]
 - [[Codex использует AGENTS.md вместо CLAUDE.md для подключения vault]]
 - [[npm workspaces и turbo управляют монорепозиторием]]
@@ -45,6 +47,7 @@ project: Bulki Bull
 - [[проверка health endpoint быстро ловит проблемы PostgreSQL]]
 - [[Nest API отвечает request entity too large без увеличенного body limit для photoUrl]]
 - [[localhost 5173 открывается только при запущенном mobile dev server]]
+- [[localhost в verification link из письма не открывается на телефоне]]
 - [[Capacitor copy и sync не обновляют уже установленный iOS build в симуляторе]]
 - [[даты периода корма нельзя строить через UTC toISOString на клиенте]]
 - [[локальный footer внутри экрана mobile исчезает на формах и просвечивает при скролле]]
@@ -63,7 +66,9 @@ project: Bulki Bull
 
 Поверх этого MVP уже есть учет кормов: API возвращает не только остатки и расход, но и готовый период запаса с датой окончания, а mobile показывает warning-состояние и ставит ежедневные локальные уведомления в последние 10 дней перед исчерпанием корма.
 
-Следующая итерация должна начинаться не с нового foundation, а с осознанного расширения MVP: тесты, настоящая загрузка фото, улучшение UX ошибок, pagination/lazy loading и production/deploy notes.
+Поверх этого MVP уже есть email auth с подтверждением почты, интеграционные API-тесты на критичный контур и README/env-документация для локального запуска.
+
+Следующая итерация должна начинаться не с нового foundation, а с осознанного расширения MVP: настоящая загрузка фото, e2e smoke, pagination/lazy loading, `ios:rebuild`-автоматизация и production/deploy notes.
 
 ## Workflow
 
