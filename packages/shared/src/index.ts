@@ -34,6 +34,28 @@ export const FeedTypeSchema = z.enum(feedTypeValues);
 
 export type FeedType = z.infer<typeof FeedTypeSchema>;
 
+export const AUTH_PASSWORD_MIN_LENGTH = 15;
+export const AUTH_PASSWORD_MAX_LENGTH = 128;
+
+const authEmailSchema = z
+  .string()
+  .trim()
+  .min(1, 'Укажите почту.')
+  .max(254, 'Почта слишком длинная.')
+  .email('Укажите корректную почту.')
+  .transform((value) => value.toLowerCase());
+
+const authPasswordSchema = z
+  .string()
+  .min(
+    AUTH_PASSWORD_MIN_LENGTH,
+    `Пароль должен быть не короче ${AUTH_PASSWORD_MIN_LENGTH} символов.`,
+  )
+  .max(
+    AUTH_PASSWORD_MAX_LENGTH,
+    `Пароль должен быть не длиннее ${AUTH_PASSWORD_MAX_LENGTH} символов.`,
+  );
+
 const emptyStringToUndefined = (value: unknown): unknown => {
   if (typeof value !== 'string') {
     return value;
@@ -192,6 +214,32 @@ export const UpdateFeedInputSchema = z
   })
   .strict();
 
+export const RegisterInputSchema = z
+  .object({
+    email: authEmailSchema,
+    password: authPasswordSchema,
+  })
+  .strict();
+
+export const LoginInputSchema = z
+  .object({
+    email: authEmailSchema,
+    password: z
+      .string()
+      .min(1, 'Укажите пароль.')
+      .max(
+        AUTH_PASSWORD_MAX_LENGTH,
+        `Пароль должен быть не длиннее ${AUTH_PASSWORD_MAX_LENGTH} символов.`,
+      ),
+  })
+  .strict();
+
+export const ResendEmailVerificationInputSchema = z
+  .object({
+    email: authEmailSchema,
+  })
+  .strict();
+
 export const WeightRecordResponseSchema = z.object({
   id: z.string(),
   bullId: z.string(),
@@ -240,15 +288,51 @@ export const FeedResponseSchema = z.object({
   updatedAt: nullableStringSchema,
 });
 
+export const AuthUserResponseSchema = z.object({
+  id: z.string(),
+  email: z.string().email(),
+  emailVerifiedAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+
+export const AuthSessionResponseSchema = z.object({
+  token: z.string(),
+  expiresAt: z.string(),
+  user: AuthUserResponseSchema,
+});
+
+export const EmailVerificationDeliverySchema = z.enum(['email', 'dev_console']);
+
+export const EmailVerificationRequiredResponseSchema = z.object({
+  status: z.literal('verification_required'),
+  email: z.string().email(),
+  delivery: EmailVerificationDeliverySchema,
+});
+
+export const EmailVerificationResentResponseSchema = z.object({
+  status: z.literal('verification_email_sent'),
+  delivery: EmailVerificationDeliverySchema,
+});
+
 export type CreateBullInput = z.infer<typeof CreateBullInputSchema>;
 export type UpdateBullInput = z.infer<typeof UpdateBullInputSchema>;
 export type AddWeightInput = z.infer<typeof AddWeightInputSchema>;
 export type ListBullsQuery = z.infer<typeof ListBullsQuerySchema>;
 export type UpdateFeedInput = z.infer<typeof UpdateFeedInputSchema>;
+export type RegisterInput = z.infer<typeof RegisterInputSchema>;
+export type LoginInput = z.infer<typeof LoginInputSchema>;
+export type ResendEmailVerificationInput = z.infer<typeof ResendEmailVerificationInputSchema>;
 export type WeightRecordResponse = z.infer<typeof WeightRecordResponseSchema>;
 export type BullResponse = z.infer<typeof BullResponseSchema>;
 export type BullDetailResponse = z.infer<typeof BullDetailResponseSchema>;
 export type FeedResponse = z.infer<typeof FeedResponseSchema>;
+export type AuthUserResponse = z.infer<typeof AuthUserResponseSchema>;
+export type AuthSessionResponse = z.infer<typeof AuthSessionResponseSchema>;
+export type EmailVerificationDelivery = z.infer<typeof EmailVerificationDeliverySchema>;
+export type EmailVerificationRequiredResponse = z.infer<
+  typeof EmailVerificationRequiredResponseSchema
+>;
+export type EmailVerificationResentResponse = z.infer<typeof EmailVerificationResentResponseSchema>;
 export type FeedAvailability = Pick<
   FeedResponse,
   'dailyConsumptionKg' | 'daysLeft' | 'periodStartDate' | 'depletionDate'

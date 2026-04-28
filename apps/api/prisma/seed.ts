@@ -2,6 +2,14 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+const demoUser = {
+  id: 'seed-user-local',
+  email: 'demo@bulki.local',
+  emailVerifiedAt: new Date(),
+  passwordHash:
+    'scrypt$16384$8$5$bulki-demo-salt-2026$l0b2gVrDjzHuFHyJMaut1uIqQho3-HXYMWY75GCMKxWRc56sj7bJCf00fhMLhjUktxs-ERLXRGWVmFrMTB0T_w',
+};
+
 const seedBulls = [
   {
     tagNumber: 'A-101',
@@ -82,10 +90,24 @@ const seedFeedStocks = [
 ];
 
 async function main(): Promise<void> {
+  const user = await prisma.user.upsert({
+    where: {
+      email: demoUser.email,
+    },
+    update: {
+      emailVerifiedAt: demoUser.emailVerifiedAt,
+      passwordHash: demoUser.passwordHash,
+    },
+    create: demoUser,
+  });
+
   for (const seedBull of seedBulls) {
     const bull = await prisma.bull.upsert({
       where: {
-        tagNumber: seedBull.tagNumber,
+        userId_tagNumber: {
+          userId: user.id,
+          tagNumber: seedBull.tagNumber,
+        },
       },
       update: {
         name: seedBull.name,
@@ -98,6 +120,7 @@ async function main(): Promise<void> {
         notes: seedBull.notes,
       },
       create: {
+        userId: user.id,
         tagNumber: seedBull.tagNumber,
         name: seedBull.name,
         birthDate: new Date(seedBull.birthDate),
@@ -129,13 +152,17 @@ async function main(): Promise<void> {
   for (const feedStock of seedFeedStocks) {
     await prisma.feedStock.upsert({
       where: {
-        type: feedStock.type,
+        userId_type: {
+          userId: user.id,
+          type: feedStock.type,
+        },
       },
       update: {
         currentStockKg: feedStock.currentStockKg,
         consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,
       },
       create: {
+        userId: user.id,
         type: feedStock.type,
         currentStockKg: feedStock.currentStockKg,
         consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,

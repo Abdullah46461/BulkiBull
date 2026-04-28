@@ -29,6 +29,8 @@ const activeFooterView = computed<PrimaryFooterView>(() => {
 });
 
 const appShellStyle = computed<Record<string, string>>(() => ({
-  '--app-bottom-nav-space': showPrimaryFooter.value ? 'calc(env(safe-area-inset-bottom) + 68px)' : '0px',
+  '--app-bottom-nav-space': showPrimaryFooter.value
+    ? 'calc(env(safe-area-inset-bottom) + 68px)'
+    : '0px',
 }));
 </script>

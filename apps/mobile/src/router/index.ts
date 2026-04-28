@@ -1,10 +1,13 @@
 import { createRouter, createWebHistory } from '@ionic/vue-router';
 
 import AddWeightView from '../views/AddWeightView.vue';
+import LoginView from '../views/LoginView.vue';
 import BullDetailView from '../views/BullDetailView.vue';
 import BullFormView from '../views/BullFormView.vue';
 import BullListView from '../views/BullListView.vue';
 import FeedsView from '../views/FeedsView.vue';
+import RegisterView from '../views/RegisterView.vue';
+import { ensureAuth, hasStoredAuthToken } from '../services/auth';
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -12,6 +15,22 @@ const router = createRouter({
     {
       path: '/',
       redirect: '/bulls',
+    },
+    {
+      path: '/login',
+      name: 'login',
+      component: LoginView,
+      meta: {
+        public: true,
+      },
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+      meta: {
+        public: true,
+      },
     },
     {
       path: '/bulls',
@@ -77,6 +96,33 @@ const router = createRouter({
       },
     },
   ],
+});
+
+router.beforeEach(async (to) => {
+  if (to.meta.public === true) {
+    if ((to.name === 'login' || to.name === 'register') && hasStoredAuthToken()) {
+      const user = await ensureAuth();
+
+      if (user) {
+        return { name: 'bulls' };
+      }
+    }
+
+    return true;
+  }
+
+  const user = await ensureAuth();
+
+  if (!user) {
+    return {
+      name: 'login',
+      query: {
+        redirect: to.fullPath,
+      },
+    };
+  }
+
+  return true;
 });
 
 export default router;

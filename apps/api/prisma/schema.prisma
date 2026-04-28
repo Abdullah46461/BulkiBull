@@ -20,7 +20,8 @@ enum FeedType {
 
 model Bull {
   id            String         @id @default(cuid())
-  tagNumber     String         @unique
+  userId        String
+  tagNumber     String
   name          String?
   birthDate     DateTime
   breed         String?
@@ -31,8 +32,11 @@ model Bull {
   notes         String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   weightRecords WeightRecord[]
 
+  @@unique([userId, tagNumber])
+  @@index([userId])
   @@index([tagNumber])
   @@index([createdAt])
 }
@@ -51,9 +55,53 @@ model WeightRecord {
 
 model FeedStock {
   id                         String   @id @default(cuid())
-  type                       FeedType @unique
+  userId                     String
+  type                       FeedType
   currentStockKg             Decimal  @db.Decimal(10, 2)
   consumptionPerBullPerDayKg Decimal  @db.Decimal(8, 3)
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
+  user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type])
+  @@index([userId])
+}
+
+model User {
+  id                      String                   @id @default(cuid())
+  email                   String                   @unique
+  emailVerifiedAt         DateTime?
+  passwordHash            String
+  createdAt               DateTime                 @default(now())
+  updatedAt               DateTime                 @updatedAt
+  sessions                AuthSession[]
+  emailVerificationTokens EmailVerificationToken[]
+  bulls                   Bull[]
+  feedStocks              FeedStock[]
+}
+
+model AuthSession {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  revokedAt DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  expiresAt DateTime
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }

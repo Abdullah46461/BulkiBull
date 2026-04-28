@@ -1,17 +1,31 @@
 import {
   AddWeightInputSchema,
+  AuthSessionResponseSchema,
+  AuthUserResponseSchema,
   BullDetailResponseSchema,
   BullResponseSchema,
   CreateBullInputSchema,
+  EmailVerificationRequiredResponseSchema,
+  EmailVerificationResentResponseSchema,
   FeedResponseSchema,
+  LoginInputSchema,
+  RegisterInputSchema,
+  ResendEmailVerificationInputSchema,
   UpdateBullInputSchema,
   UpdateFeedInputSchema,
   WeightRecordResponseSchema,
   type AddWeightInput,
+  type AuthSessionResponse,
+  type AuthUserResponse,
   type BullDetailResponse,
   type BullResponse,
   type CreateBullInput,
+  type EmailVerificationRequiredResponse,
+  type EmailVerificationResentResponse,
   type FeedResponse,
+  type LoginInput,
+  type RegisterInput,
+  type ResendEmailVerificationInput,
   type UpdateBullInput,
   type UpdateFeedInput,
   type FeedType,
@@ -19,7 +33,10 @@ import {
 } from '@bulki-bull/shared';
 import { z } from 'zod';
 
+import { clearAuthToken, getAuthToken } from './authToken';
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
+const API_UNAVAILABLE_MESSAGE = `Не удается связаться с сервером. Проверьте, что API запущен по адресу ${API_URL}.`;
 
 type ApiErrorPayload = {
   message?: string | string[];
@@ -56,6 +73,18 @@ const getErrorMessage = (payload: ApiErrorPayload | null, fallback: string): str
 const getSchemaErrorMessage = (error: z.ZodError, fallback: string): string =>
   error.issues.map((issue) => issue.message).join('\n') || fallback;
 
+const parseJsonSafely = (text: string): unknown | null => {
+  if (!text.trim()) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
+
 const parseSchema = <T>(schema: z.ZodType<T>, data: unknown, fallback: string): T => {
   const result = schema.safeParse(data);
 
@@ -67,18 +96,32 @@ const parseSchema = <T>(schema: z.ZodType<T>, data: unknown, fallback: string): 
 };
 
 const request = async <T>(path: string, schema: z.ZodType<T>, init?: RequestInit): Promise<T> => {
-  const response = await fetch(buildUrl(path), {
-    ...init,
-    headers: {
-      'content-type': 'application/json',
-      ...(init?.headers ?? {}),
-    },
-  });
+  const authToken = getAuthToken();
+  let response: Response;
+
+  try {
+    response = await fetch(buildUrl(path), {
+      ...init,
+      headers: {
+        'content-type': 'application/json',
+        ...(authToken ? { authorization: `Bearer ${authToken}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+  } catch {
+    throw new ApiError(API_UNAVAILABLE_MESSAGE, 0);
+  }
+
   const text = await response.text();
-  const data = text ? JSON.parse(text) : null;
+  const data = parseJsonSafely(text);
 
   if (!response.ok) {
     const payload = data as ApiErrorPayload | null;
+
+    if (response.status === 401) {
+      clearAuthToken();
+    }
+
     throw new ApiError(
       getErrorMessage(payload, 'Ошибка запроса'),
       response.status,
@@ -86,10 +129,49 @@ const request = async <T>(path: string, schema: z.ZodType<T>, init?: RequestInit
     );
   }
 
+  if (data === null && text.trim()) {
+    throw new Error('Сервер вернул непонятный ответ. Попробуйте еще раз.');
+  }
+
   return parseSchema(schema, data, 'Некорректный ответ сервера');
 };
 
 export const api = {
+  register(input: RegisterInput): Promise<EmailVerificationRequiredResponse> {
+    return request('/auth/register', EmailVerificationRequiredResponseSchema, {
+      method: 'POST',
+      body: JSON.stringify(parseSchema(RegisterInputSchema, input, 'Проверьте данные формы')),
+    });
+  },
+
+  resendEmailVerification(
+    input: ResendEmailVerificationInput,
+  ): Promise<EmailVerificationResentResponse> {
+    return request('/auth/verify-email/resend', EmailVerificationResentResponseSchema, {
+      method: 'POST',
+      body: JSON.stringify(
+        parseSchema(ResendEmailVerificationInputSchema, input, 'Проверьте почту'),
+      ),
+    });
+  },
+
+  login(input: LoginInput): Promise<AuthSessionResponse> {
+    return request('/auth/login', AuthSessionResponseSchema, {
+      method: 'POST',
+      body: JSON.stringify(parseSchema(LoginInputSchema, input, 'Проверьте данные формы')),
+    });
+  },
+
+  me(): Promise<AuthUserResponse> {
+    return request('/auth/me', AuthUserResponseSchema);
+  },
+
+  async logout(): Promise<void> {
+    await request('/auth/logout', z.null(), {
+      method: 'POST',
+    });
+  },
+
   listBulls(search = ''): Promise<BullResponse[]> {
     const query = search.trim() ? `?search=${encodeURIComponent(search.trim())}` : '';
     return request(`/bulls${query}`, z.array(BullResponseSchema));

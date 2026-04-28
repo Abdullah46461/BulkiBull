@@ -14,11 +14,15 @@ import { PrismaService } from '../prisma/prisma.service';
 export class FeedsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async findAll(): Promise<FeedResponse[]> {
+  async findAll(userId: string): Promise<FeedResponse[]> {
     const now = new Date();
     const [feedStocks, bullsCount] = await Promise.all([
-      this.prisma.feedStock.findMany(),
-      this.getBullsCount(),
+      this.prisma.feedStock.findMany({
+        where: {
+          userId,
+        },
+      }),
+      this.getBullsCount(userId),
     ]);
 
     const feedStockMap = new Map(feedStocks.map((feedStock) => [feedStock.type, feedStock]));
@@ -28,31 +32,39 @@ export class FeedsService {
     );
   }
 
-  async update(type: FeedType, input: UpdateFeedInput): Promise<FeedResponse> {
+  async update(userId: string, type: FeedType, input: UpdateFeedInput): Promise<FeedResponse> {
     const now = new Date();
     const feedStock = await this.prisma.feedStock.upsert({
       where: {
-        type,
+        userId_type: {
+          userId,
+          type,
+        },
       },
       update: {
         currentStockKg: input.currentStockKg,
         consumptionPerBullPerDayKg: input.consumptionPerBullPerDayKg,
       },
       create: {
+        userId,
         type,
         currentStockKg: input.currentStockKg,
         consumptionPerBullPerDayKg: input.consumptionPerBullPerDayKg,
       },
     });
 
-    const bullsCount = await this.getBullsCount();
+    const bullsCount = await this.getBullsCount(userId);
 
     return this.toFeedResponse(type, feedStock, bullsCount, now);
   }
 
-  private async getBullsCount(): Promise<number> {
+  private async getBullsCount(userId: string): Promise<number> {
     // TODO: switch to active bulls only when statuses appear in the data model.
-    return this.prisma.bull.count();
+    return this.prisma.bull.count({
+      where: {
+        userId,
+      },
+    });
   }
 
   private toFeedResponse(

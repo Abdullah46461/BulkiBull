@@ -5,6 +5,7 @@
         <ion-title>Корма</ion-title>
         <ion-buttons slot="end">
           <theme-toggle-button />
+          <account-menu-button />
         </ion-buttons>
       </ion-toolbar>
     </ion-header>
@@ -251,6 +252,7 @@ import { createOutline, saveOutline } from 'ionicons/icons';
 import { computed, reactive, ref } from 'vue';
 import type { FeedResponse, FeedType } from '@bulki-bull/shared';
 
+import AccountMenuButton from '../components/AccountMenuButton.vue';
 import ThemeToggleButton from '../components/ThemeToggleButton.vue';
 import { api } from '../services/api';
 import { syncFeedNotifications } from '../services/feedNotifications';

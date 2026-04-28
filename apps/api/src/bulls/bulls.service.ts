@@ -25,16 +25,19 @@ type BullWithWeightRecords = Prisma.BullGetPayload<{
 export class BullsService {
   constructor(@Inject(PrismaService) private readonly prisma: PrismaService) {}
 
-  async findAll(query: ListBullsQuery): Promise<BullResponse[]> {
+  async findAll(userId: string, query: ListBullsQuery): Promise<BullResponse[]> {
     const bulls = await this.prisma.bull.findMany({
-      where: query.search
-        ? {
-            tagNumber: {
-              contains: query.search,
-              mode: 'insensitive',
-            },
-          }
-        : undefined,
+      where: {
+        userId,
+        ...(query.search
+          ? {
+              tagNumber: {
+                contains: query.search,
+                mode: 'insensitive' as const,
+              },
+            }
+          : {}),
+      },
       include: {
         weightRecords: {
           orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -47,16 +50,16 @@ export class BullsService {
     return bulls.map((bull) => this.toBullResponse(bull));
   }
 
-  async findOne(id: string): Promise<BullDetailResponse> {
-    const bull = await this.findBullWithWeightHistory(id);
+  async findOne(userId: string, id: string): Promise<BullDetailResponse> {
+    const bull = await this.findBullWithWeightHistory(userId, id);
 
     return this.toBullDetailResponse(bull);
   }
 
-  async create(input: CreateBullInput): Promise<BullDetailResponse> {
+  async create(userId: string, input: CreateBullInput): Promise<BullDetailResponse> {
     try {
       const bull = await this.prisma.bull.create({
-        data: this.toCreateData(input),
+        data: this.toCreateData(userId, input),
         include: {
           weightRecords: {
             orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -70,8 +73,8 @@ export class BullsService {
     }
   }
 
-  async update(id: string, input: UpdateBullInput): Promise<BullDetailResponse> {
-    await this.ensureBullExists(id);
+  async update(userId: string, id: string, input: UpdateBullInput): Promise<BullDetailResponse> {
+    await this.ensureBullExists(userId, id);
 
     try {
       const bull = await this.prisma.bull.update({
@@ -92,7 +95,9 @@ export class BullsService {
     }
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(userId: string, id: string): Promise<void> {
+    await this.ensureBullExists(userId, id);
+
     try {
       await this.prisma.bull.delete({
         where: {
@@ -108,8 +113,8 @@ export class BullsService {
     }
   }
 
-  async findWeights(id: string): Promise<WeightRecordResponse[]> {
-    await this.ensureBullExists(id);
+  async findWeights(userId: string, id: string): Promise<WeightRecordResponse[]> {
+    await this.ensureBullExists(userId, id);
 
     const weightRecords = await this.prisma.weightRecord.findMany({
       where: {
@@ -121,8 +126,12 @@ export class BullsService {
     return weightRecords.map((weightRecord) => this.toWeightRecordResponse(weightRecord));
   }
 
-  async addWeight(id: string, input: AddWeightInput): Promise<WeightRecordResponse> {
-    await this.ensureBullExists(id);
+  async addWeight(
+    userId: string,
+    id: string,
+    input: AddWeightInput,
+  ): Promise<WeightRecordResponse> {
+    await this.ensureBullExists(userId, id);
 
     const weightRecord = await this.prisma.weightRecord.create({
       data: {
@@ -136,10 +145,14 @@ export class BullsService {
     return this.toWeightRecordResponse(weightRecord);
   }
 
-  private async findBullWithWeightHistory(id: string): Promise<BullWithWeightRecords> {
-    const bull = await this.prisma.bull.findUnique({
+  private async findBullWithWeightHistory(
+    userId: string,
+    id: string,
+  ): Promise<BullWithWeightRecords> {
+    const bull = await this.prisma.bull.findFirst({
       where: {
         id,
+        userId,
       },
       include: {
         weightRecords: {
@@ -155,10 +168,11 @@ export class BullsService {
     return bull;
   }
 
-  private async ensureBullExists(id: string): Promise<void> {
-    const bull = await this.prisma.bull.findUnique({
+  private async ensureBullExists(userId: string, id: string): Promise<void> {
+    const bull = await this.prisma.bull.findFirst({
       where: {
         id,
+        userId,
       },
       select: {
         id: true,
@@ -170,8 +184,13 @@ export class BullsService {
     }
   }
 
-  private toCreateData(input: CreateBullInput): Prisma.BullCreateInput {
+  private toCreateData(userId: string, input: CreateBullInput): Prisma.BullCreateInput {
     return {
+      user: {
+        connect: {
+          id: userId,
+        },
+      },
       tagNumber: input.tagNumber,
       name: input.name ?? null,
       birthDate: this.toDate(input.birthDate),

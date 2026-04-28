@@ -5,6 +5,7 @@
         <ion-title>Бычки</ion-title>
         <ion-buttons slot="end">
           <theme-toggle-button />
+          <account-menu-button />
           <ion-button
             :aria-label="isSearchOpen ? 'Закрыть поиск' : 'Открыть поиск'"
             @click="toggleSearch"
@@ -129,6 +130,7 @@ import { addOutline, closeCircleOutline, closeOutline, searchOutline } from 'ion
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import type { BullResponse, FeedResponse, FeedType } from '@bulki-bull/shared';
 
+import AccountMenuButton from '../components/AccountMenuButton.vue';
 import ThemeToggleButton from '../components/ThemeToggleButton.vue';
 import { api } from '../services/api';
 import { syncFeedNotifications } from '../services/feedNotifications';
