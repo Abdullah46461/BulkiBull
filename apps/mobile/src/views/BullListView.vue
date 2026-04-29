@@ -5,13 +5,13 @@
         <ion-title>Бычки</ion-title>
         <ion-buttons slot="end">
           <theme-toggle-button />
-          <account-menu-button />
           <ion-button
             :aria-label="isSearchOpen ? 'Закрыть поиск' : 'Открыть поиск'"
             @click="toggleSearch"
           >
             <ion-icon slot="icon-only" :icon="isSearchOpen ? closeOutline : searchOutline" />
           </ion-button>
+          <account-menu-button />
         </ion-buttons>
       </ion-toolbar>
       <ion-toolbar class="summary-toolbar">
@@ -58,6 +58,8 @@
 
     <ion-content fullscreen>
       <main class="screen">
+        <p v-if="totalBullsCount !== null" class="bull-count">Всего бычков: {{ totalBullsCount }}</p>
+
         <section v-if="loading" class="state">
           <ion-spinner name="crescent" />
           <p>Загружаем список</p>
@@ -141,6 +143,7 @@ import { normalizePhotoUrl } from '../utils/photo';
 const FEEDS_UPDATED_EVENT = 'feeds-updated';
 
 const bulls = ref<BullResponse[]>([]);
+const totalBullsCount = ref<number | null>(null);
 const feedSummary = ref<FeedResponse[]>([]);
 const brokenPhotoIds = ref<Set<string>>(new Set());
 const loading = ref(true);
@@ -185,12 +188,22 @@ const loadBulls = async (): Promise<void> => {
 
   try {
     bulls.value = await api.listBulls(search.value);
+
+    if (!search.value.trim()) {
+      totalBullsCount.value = bulls.value.length;
+    }
   } catch (requestError) {
     error.value =
       requestError instanceof Error ? requestError.message : 'Не удалось загрузить список';
   } finally {
     loading.value = false;
   }
+};
+
+const loadTotalBullsCount = async (): Promise<void> => {
+  try {
+    totalBullsCount.value = (await api.listBulls()).length;
+  } catch {}
 };
 
 const loadFeedSummary = async (): Promise<void> => {
@@ -272,6 +285,7 @@ const handleFeedsUpdated = (): void => {
 
 onIonViewWillEnter(() => {
   void loadBulls();
+  void loadTotalBullsCount();
   void loadFeedSummary();
 });
 
@@ -293,6 +307,14 @@ onBeforeUnmount(() => {
   min-height: 100%;
   padding: 16px 16px calc(16px + var(--app-bottom-nav-space, 0px));
   background: var(--app-screen-background);
+}
+
+.bull-count {
+  margin: 0 0 12px;
+  color: var(--app-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .bull-list {

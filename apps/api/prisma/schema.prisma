@@ -59,6 +59,7 @@ model FeedStock {
   type                       FeedType
   currentStockKg             Decimal  @db.Decimal(10, 2)
   consumptionPerBullPerDayKg Decimal  @db.Decimal(8, 3)
+  stockSnapshotAt            DateTime @default(now())
   createdAt                  DateTime @default(now())
   updatedAt                  DateTime @updatedAt
   user                       User     @relation(fields: [userId], references: [id], onDelete: Cascade)

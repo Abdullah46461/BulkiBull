@@ -89,6 +89,8 @@ const seedFeedStocks = [
   },
 ];
 
+const seedFeedSnapshotAt = new Date();
+
 async function main(): Promise<void> {
   const user = await prisma.user.upsert({
     where: {
@@ -160,12 +162,14 @@ async function main(): Promise<void> {
       update: {
         currentStockKg: feedStock.currentStockKg,
         consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,
+        stockSnapshotAt: seedFeedSnapshotAt,
       },
       create: {
         userId: user.id,
         type: feedStock.type,
         currentStockKg: feedStock.currentStockKg,
         consumptionPerBullPerDayKg: feedStock.consumptionPerBullPerDayKg,
+        stockSnapshotAt: seedFeedSnapshotAt,
       },
     });
   }
