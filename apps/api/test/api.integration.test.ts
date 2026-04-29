@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { PrismaClient } from '@prisma/client';
 import {
   calculateFeedAvailability,
+  calculateFeedRemainingStockKg,
   type AuthSessionResponse,
   type BullDetailResponse,
   type BullResponse,
@@ -320,6 +321,41 @@ test('/feeds returns inventory with calculated availability', async () => {
   assert.equal(updateFeedResponse.body.periodStartDate, expectedAvailability.periodStartDate);
   assert.equal(updateFeedResponse.body.depletionDate, expectedAvailability.depletionDate);
 
+  const simulatedYesterday = new Date();
+  simulatedYesterday.setDate(simulatedYesterday.getDate() - 1);
+  simulatedYesterday.setHours(12, 0, 0, 0);
+
+  await prisma.$executeRawUnsafe(
+    'UPDATE "FeedStock" SET "stockSnapshotAt" = $1 WHERE "id" = $2',
+    simulatedYesterday,
+    updateFeedResponse.body.id,
+  );
+
+  const expectedAvailabilityAfterDay = calculateFeedAvailability(
+    {
+      bullsCount: 2,
+      currentStockKg: 100,
+      consumptionPerBullPerDayKg: 1.25,
+      stockSnapshotAt: simulatedYesterday,
+    },
+    new Date(),
+  );
+  const expectedAvailabilityAtYesterdaySave = calculateFeedAvailability(
+    {
+      bullsCount: 2,
+      currentStockKg: 100,
+      consumptionPerBullPerDayKg: 1.25,
+      stockSnapshotAt: simulatedYesterday,
+    },
+    simulatedYesterday,
+  );
+  const expectedRemainingStockAfterDay = calculateFeedRemainingStockKg(
+    100,
+    expectedAvailability.dailyConsumptionKg,
+    simulatedYesterday,
+    new Date(),
+  );
+
   const feedsAfterUpdateResponse = await jsonRequest<FeedResponse[]>('/feeds', {
     headers: withAuth(authToken),
   });
@@ -329,7 +365,12 @@ test('/feeds returns inventory with calculated availability', async () => {
   assert.equal(feedsAfterUpdateResponse.status, 200);
   assert.ok(hayFeed);
   assert.equal(hayFeed?.bullsCount, 2);
-  assert.equal(hayFeed?.daysLeft, expectedAvailability.daysLeft);
+  assert.equal(hayFeed?.currentStockKg, expectedRemainingStockAfterDay);
+  assert.equal(hayFeed?.stockSnapshotAt, simulatedYesterday.toISOString());
+  assert.equal(hayFeed?.daysLeft, expectedAvailabilityAfterDay.daysLeft);
+  assert.equal(hayFeed?.periodStartDate, expectedAvailabilityAfterDay.periodStartDate);
+  assert.equal(hayFeed?.depletionDate, expectedAvailabilityAfterDay.depletionDate);
+  assert.equal(hayFeed?.depletionDate, expectedAvailabilityAtYesterdaySave.depletionDate);
   assert.ok(compoundFeed);
   assert.equal(compoundFeed?.bullsCount, 2);
   assert.equal(compoundFeed?.currentStockKg, null);

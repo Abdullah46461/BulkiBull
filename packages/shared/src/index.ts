@@ -279,6 +279,7 @@ export const FeedResponseSchema = z.object({
   type: FeedTypeSchema,
   currentStockKg: nullableNumberSchema,
   consumptionPerBullPerDayKg: nullableNumberSchema,
+  stockSnapshotAt: nullableStringSchema,
   bullsCount: z.number().int().nonnegative(),
   dailyConsumptionKg: nullableNumberSchema,
   daysLeft: nullableNumberSchema,
@@ -342,6 +343,7 @@ export type CalculateFeedAvailabilityInput = {
   bullsCount: number;
   currentStockKg: number | null;
   consumptionPerBullPerDayKg: number | null;
+  stockSnapshotAt?: Date | null;
 };
 
 const roundTo = (value: number, digits: number): number => Number(value.toFixed(digits));
@@ -362,6 +364,9 @@ const addDays = (date: Date, days: number): Date => {
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
 };
+
+const differenceInCalendarDays = (left: Date, right: Date): number =>
+  Math.round((startOfDay(left).getTime() - startOfDay(right).getTime()) / (24 * 60 * 60 * 1000));
 
 export const calculateFeedDailyConsumptionKg = (
   bullsCount: number,
@@ -385,6 +390,24 @@ export const calculateFeedDaysLeft = (
   return roundTo(currentStockKg / dailyConsumptionKg, 2);
 };
 
+export const calculateFeedRemainingStockKg = (
+  currentStockKg: number | null,
+  dailyConsumptionKg: number | null,
+  stockSnapshotAt: Date | null | undefined,
+  now = new Date(),
+): number | null => {
+  if (currentStockKg === null) {
+    return null;
+  }
+
+  if (dailyConsumptionKg === null || dailyConsumptionKg <= 0 || !stockSnapshotAt) {
+    return currentStockKg;
+  }
+
+  const elapsedDays = Math.max(differenceInCalendarDays(now, stockSnapshotAt), 0);
+  return roundTo(Math.max(currentStockKg - elapsedDays * dailyConsumptionKg, 0), 2);
+};
+
 export const calculateFeedDepletionDate = (
   daysLeft: number | null,
   now = new Date(),
@@ -405,7 +428,13 @@ export const calculateFeedAvailability = (
     input.bullsCount,
     input.consumptionPerBullPerDayKg,
   );
-  const daysLeft = calculateFeedDaysLeft(input.currentStockKg, dailyConsumptionKg);
+  const remainingStockKg = calculateFeedRemainingStockKg(
+    input.currentStockKg,
+    dailyConsumptionKg,
+    input.stockSnapshotAt,
+    now,
+  );
+  const daysLeft = calculateFeedDaysLeft(remainingStockKg, dailyConsumptionKg);
   const periodStartDate = daysLeft === null ? null : toLocalDateString(startOfDay(now));
 
   return {

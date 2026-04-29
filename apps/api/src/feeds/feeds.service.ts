@@ -2,6 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { type FeedStock } from '@prisma/client';
 import {
   calculateFeedAvailability,
+  calculateFeedDailyConsumptionKg,
+  calculateFeedRemainingStockKg,
   feedTypeValues,
   type FeedResponse,
   type FeedType,
@@ -44,12 +46,14 @@ export class FeedsService {
       update: {
         currentStockKg: input.currentStockKg,
         consumptionPerBullPerDayKg: input.consumptionPerBullPerDayKg,
+        stockSnapshotAt: now,
       },
       create: {
         userId,
         type,
         currentStockKg: input.currentStockKg,
         consumptionPerBullPerDayKg: input.consumptionPerBullPerDayKg,
+        stockSnapshotAt: now,
       },
     });
 
@@ -73,13 +77,24 @@ export class FeedsService {
     bullsCount: number,
     now: Date,
   ): FeedResponse {
-    const currentStockKg = feedStock?.currentStockKg.toNumber() ?? null;
+    const storedCurrentStockKg = feedStock?.currentStockKg.toNumber() ?? null;
     const consumptionPerBullPerDayKg = feedStock?.consumptionPerBullPerDayKg.toNumber() ?? null;
+    const dailyConsumptionKg = calculateFeedDailyConsumptionKg(
+      bullsCount,
+      consumptionPerBullPerDayKg,
+    );
+    const currentStockKg = calculateFeedRemainingStockKg(
+      storedCurrentStockKg,
+      dailyConsumptionKg,
+      feedStock?.stockSnapshotAt,
+      now,
+    );
     const availability = calculateFeedAvailability(
       {
         bullsCount,
-        currentStockKg,
+        currentStockKg: storedCurrentStockKg,
         consumptionPerBullPerDayKg,
+        stockSnapshotAt: feedStock?.stockSnapshotAt,
       },
       now,
     );
@@ -89,6 +104,7 @@ export class FeedsService {
       type,
       currentStockKg,
       consumptionPerBullPerDayKg,
+      stockSnapshotAt: feedStock?.stockSnapshotAt.toISOString() ?? null,
       bullsCount,
       ...availability,
       createdAt: feedStock?.createdAt.toISOString() ?? null,
